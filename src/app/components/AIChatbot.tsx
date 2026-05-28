@@ -61,11 +61,20 @@ export function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
+  const greeting =
+    context === 'seller'
+      ? "Hi! I'm **BUBot** 👋 — Need help managing products, orders, or notifications?"
+      : context === 'admin'
+        ? "Hi admin! I'm **BUBot**. I can help explain the marketplace flows."
+        : "Hi! I'm **BUBot** 👋 — your BUMarket assistant! I can help you with orders, seller info, payments, and more.";
+
+  const pageHint = page && CONTEXT_HINTS[page] ? `\n\n${CONTEXT_HINTS[page]}` : '';
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '0',
       role: 'bot',
-      text: "Hi! I'm **BUBot** 👋 — your BUMarket AI assistant!\n\nI can help you with orders, seller info, payments, and more. How can I help you today?",
+      text: greeting + pageHint,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
