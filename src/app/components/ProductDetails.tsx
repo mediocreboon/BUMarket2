@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Star, ShieldCheck, MapPin, MessageCircle, Heart, Share2, Tag, Package, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { Product, mockProducts, mockReviews } from '../data/mockProducts';
 import { ProductCard } from './ProductCard';
@@ -9,6 +9,7 @@ interface ProductDetailsProps {
   product: Product;
   products?: Product[];
   onBack: () => void;
+  onViewProduct?: (product: Product) => void;
   onInventoryChanged?: () => Promise<void> | void;
 }
 
@@ -16,6 +17,7 @@ export function ProductDetails({
   product,
   products = mockProducts,
   onBack,
+  onViewProduct,
   onInventoryChanged,
 }: ProductDetailsProps) {
   const [currentImg, setCurrentImg] = useState(0);
@@ -26,6 +28,31 @@ export function ProductDetails({
   const reviews = mockReviews.filter(r => r.productId === product.id);
   const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
   const images = product.images?.length ? product.images : [product.image];
+  const currentImage = images[Math.min(currentImg, images.length - 1)] || product.image;
+  const sellerInitial = product.seller?.[0]?.toUpperCase() || '?';
+
+  useEffect(() => {
+    setCurrentImg(0);
+    setShowBuyModal(false);
+  }, [product.id]);
+
+  const handleShare = async () => {
+    const shareData = {
+      title: product.title,
+      text: `Check out "${product.title}" on BUMarket.`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard?.writeText(shareData.url);
+      }
+    } catch {
+      // Sharing can be cancelled by the user; no UI change is needed.
+    }
+  };
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50">
@@ -40,7 +67,7 @@ export function ProductDetails({
         <button onClick={() => setIsFavorite(!isFavorite)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-500'}`} />
         </button>
-        <button className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+        <button onClick={handleShare} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <Share2 className="w-5 h-5 text-slate-500" />
         </button>
       </div>
@@ -51,7 +78,7 @@ export function ProductDetails({
           <div>
             <div className="relative bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm h-72 md:h-80">
               <ImageWithFallback
-                src={images[currentImg]}
+                src={currentImage}
                 alt={product.title}
                 className="w-full h-full object-cover"
               />
@@ -173,7 +200,11 @@ export function ProductDetails({
               >
                 {product.stock <= 0 ? 'Out of Stock' : 'Reserve Now'}
               </button>
-              <button className="px-4 py-3 border border-blue-200 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors">
+              <button
+                disabled
+                title="Messaging is coming soon"
+                className="px-4 py-3 border border-blue-200 text-blue-600 rounded-xl opacity-60 cursor-not-allowed"
+              >
                 <MessageCircle className="w-5 h-5" />
               </button>
               <button
@@ -262,7 +293,7 @@ export function ProductDetails({
               <div>
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-xl text-blue-600 font-bold">{product.seller[0]}</span>
+                    <span className="text-xl text-blue-600 font-bold">{sellerInitial}</span>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -289,11 +320,17 @@ export function ProductDetails({
 
                 <div className="flex gap-2">
                   <button
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+                    disabled
+                    title="Messaging is coming soon"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl text-sm opacity-60 cursor-not-allowed"
                   >
                     <MessageCircle className="w-4 h-4" /> Message Seller
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm">
+                  <button
+                    disabled
+                    title="Seller shop pages are coming soon"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm opacity-60 cursor-not-allowed"
+                  >
                     View Shop
                   </button>
                 </div>
@@ -312,6 +349,7 @@ export function ProductDetails({
                   key={p.id}
                   product={p}
                   compact
+                  onViewDetails={onViewProduct}
                   onInventoryChanged={onInventoryChanged}
                 />
               ))}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus, Search, Edit3, Trash2, Package, X, Upload, RefreshCw } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import {
@@ -44,24 +44,36 @@ export function SellerInventory() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const mountedRef = useRef(true);
+  const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestRef.current;
+    const isActive = () => mountedRef.current && requestId === requestRef.current;
     if (!user) {
-      setProducts([]);
-      setIsLoading(false);
+      if (isActive()) {
+        setProducts([]);
+        setIsLoading(false);
+      }
       return;
     }
-    setIsLoading(true);
+    if (isActive()) setIsLoading(true);
     try {
       const rows = await listProductsBySeller(user.id);
-      setProducts(rows);
+      if (isActive()) setProducts(rows);
+    } catch {
+      if (isActive()) setError('Failed to load inventory.');
     } finally {
-      setIsLoading(false);
+      if (isActive()) setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [refresh]);
 
   const filtered = products.filter(
@@ -96,6 +108,7 @@ export function SellerInventory() {
     if (!confirm(`Delete "${p.title}"?`)) return;
     setError('');
     const ok = await deleteProduct(p.id);
+    if (!mountedRef.current) return;
     if (ok) {
       setProducts((prev) => prev.filter((x) => x.id !== p.id));
     } else {
@@ -122,7 +135,7 @@ export function SellerInventory() {
       if (imageFile) {
         const uploaded = await uploadProductImage(imageFile, user.id);
         if (!uploaded) {
-          setError('Failed to upload product image.');
+          if (mountedRef.current) setError('Failed to upload product image.');
           return;
         }
         imageUrl = uploaded;
@@ -142,25 +155,28 @@ export function SellerInventory() {
       if (editingId) {
         const ok = await updateProduct(editingId, payload);
         if (!ok) {
-          setError('Failed to update product.');
+          if (mountedRef.current) setError('Failed to update product.');
           return;
         }
       } else {
         const created = await createProduct(payload);
         if (!created) {
-          setError(
-            'Failed to create product. Make sure the Supabase schema has been applied (see supabase/schema.sql).'
-          );
+          if (mountedRef.current) {
+            setError(
+              'Failed to create product. Make sure the Supabase schema has been applied (see supabase/schema.sql).'
+            );
+          }
           return;
         }
       }
+      if (!mountedRef.current) return;
       setShowFormModal(false);
       setForm(EMPTY_FORM);
       setImageFile(null);
       setEditingId(null);
       await refresh();
     } finally {
-      setIsSaving(false);
+      if (mountedRef.current) setIsSaving(false);
     }
   };
 
@@ -174,7 +190,8 @@ export function SellerInventory() {
         <div className="flex items-center gap-2">
           <button
             onClick={refresh}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm"
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -233,13 +250,19 @@ export function SellerInventory() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-slate-400">
             <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>No products yet.</p>
-            <button
-              onClick={openCreate}
-              className="mt-3 text-indigo-600 text-sm hover:underline"
-            >
-              + Add your first product
-            </button>
+              <p>{search ? 'No products match your search.' : 'No products yet.'}</p>
+              {search ? (
+                <button onClick={() => setSearch('')} className="mt-3 text-indigo-600 text-sm hover:underline">
+                  Clear search
+                </button>
+              ) : (
+                <button
+                  onClick={openCreate}
+                  className="mt-3 text-indigo-600 text-sm hover:underline"
+                >
+                  + Add your first product
+                </button>
+              )}
           </div>
         ) : (
           <div className="overflow-x-auto">

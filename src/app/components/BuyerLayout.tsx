@@ -139,6 +139,7 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
           <BuyerHome
             userName={userName}
             onNavigateToMarketplace={() => setActiveView('marketplace')}
+            onNavigateToNotifications={() => setActiveView('notifications')}
           />
         )}
         {activeView === 'marketplace' && <Marketplace userName={userName} userType="buyer" />}

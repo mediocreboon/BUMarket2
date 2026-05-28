@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Users, Package, ShieldCheck, LogOut, Settings,
   LayoutDashboard, ShoppingCart, Search, RefreshCw, Menu,
@@ -40,25 +40,35 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const requestRef = useRef(0);
 
   const [userSearch, setUserSearch] = useState('');
   const [userFilter, setUserFilter] = useState<'all' | 'buyer' | 'seller' | 'admin'>('all');
   const [productSearch, setProductSearch] = useState('');
 
   const refresh = useCallback(async () => {
-    setIsLoading(true);
+    const requestId = ++requestRef.current;
+    const isActive = () => mountedRef.current && requestId === requestRef.current;
+    if (isActive()) setIsLoading(true);
     try {
       const [pf, pr, or] = await Promise.all([listProfiles(), listProducts(), listAllOrders()]);
-      setProfiles(pf);
-      setProducts(pr);
-      setOrders(or);
+      if (isActive()) {
+        setProfiles(pf);
+        setProducts(pr);
+        setOrders(or);
+      }
     } finally {
-      setIsLoading(false);
+      if (isActive()) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [refresh]);
 
   const sellers = profiles.filter((p) => p.role === 'seller');
@@ -141,7 +151,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </h2>
           <button
             onClick={refresh}
-            className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -344,14 +355,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
               <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <h3 className="text-slate-800 font-semibold">All Products ({products.length})</h3>
-                <div className="relative">
+                <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     placeholder="Search products..."
-                    className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300 w-64"
+                    className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300 w-full"
                   />
                 </div>
               </div>

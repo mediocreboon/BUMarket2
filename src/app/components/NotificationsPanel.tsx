@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, Check, CheckCheck, RefreshCw } from 'lucide-react';
 import {
   DbNotification,
@@ -25,25 +25,39 @@ export function NotificationsPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const mountedRef = useRef(true);
+  const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestRef.current;
+    const isActive = () => mountedRef.current && requestId === requestRef.current;
     if (!user) {
-      setItems([]);
-      setIsLoading(false);
+      if (isActive()) {
+        setItems([]);
+        setIsLoading(false);
+      }
       return;
     }
-    setIsLoading(true);
-    setError('');
+    if (isActive()) {
+      setIsLoading(true);
+      setError('');
+    }
     try {
       const rows = await listNotifications(user.id);
-      setItems(rows);
+      if (isActive()) setItems(rows);
+    } catch {
+      if (isActive()) setError('Failed to load notifications.');
     } finally {
-      setIsLoading(false);
+      if (isActive()) setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [refresh]);
 
   const handleMarkRead = async (n: DbNotification) => {
@@ -53,12 +67,14 @@ export function NotificationsPanel() {
     try {
       const ok = await markNotificationRead(n.id);
       if (!ok) {
-        setError('Unable to mark this notification as read.');
+        if (mountedRef.current) setError('Unable to mark this notification as read.');
         return;
       }
-      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+      if (mountedRef.current) {
+        setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+      }
     } finally {
-      setUpdatingId(null);
+      if (mountedRef.current) setUpdatingId(null);
     }
   };
 
@@ -69,12 +85,14 @@ export function NotificationsPanel() {
     try {
       const ok = await markAllNotificationsRead(user.id);
       if (!ok) {
-        setError('Unable to mark notifications as read.');
+        if (mountedRef.current) setError('Unable to mark notifications as read.');
         return;
       }
-      setItems((prev) => prev.map((x) => ({ ...x, is_read: true })));
+      if (mountedRef.current) {
+        setItems((prev) => prev.map((x) => ({ ...x, is_read: true })));
+      }
     } finally {
-      setUpdatingId(null);
+      if (mountedRef.current) setUpdatingId(null);
     }
   };
 

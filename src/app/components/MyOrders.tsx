@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Package, Clock, CheckCircle, MessageCircle, Search, RefreshCw } from 'lucide-react';
 import {
   DbOrder,
@@ -34,26 +34,40 @@ export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
   const [search, setSearch] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const mountedRef = useRef(true);
+  const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestRef.current;
+    const isActive = () => mountedRef.current && requestId === requestRef.current;
     if (!user) {
-      setOrders([]);
-      setIsLoading(false);
+      if (isActive()) {
+        setOrders([]);
+        setIsLoading(false);
+      }
       return;
     }
-    setIsLoading(true);
-    setError('');
+    if (isActive()) {
+      setIsLoading(true);
+      setError('');
+    }
     try {
       const rows =
         userType === 'buyer' ? await listOrdersForBuyer(user.id) : await listOrdersForSeller(user.id);
-      setOrders(rows);
+      if (isActive()) setOrders(rows);
+    } catch {
+      if (isActive()) setError('Failed to load orders.');
     } finally {
-      setIsLoading(false);
+      if (isActive()) setIsLoading(false);
     }
   }, [user, userType]);
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [refresh]);
 
   const handleStatusChange = async (order: DbOrder, next: OrderStatus) => {
@@ -64,13 +78,13 @@ export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
     try {
       const ok = await updateOrderStatus(order.id, next);
       if (!ok) {
-        setError('Unable to update this order. Please refresh and try again.');
+        if (mountedRef.current) setError('Unable to update this order. Please refresh and try again.');
         return;
       }
       await refresh();
       await Promise.resolve(onOrdersChanged?.());
     } finally {
-      setUpdatingId(null);
+      if (mountedRef.current) setUpdatingId(null);
     }
   };
 
@@ -95,7 +109,8 @@ export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
         </div>
         <button
           onClick={refresh}
-          className="px-3 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+          disabled={isLoading}
+          className="px-3 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-2 disabled:opacity-60"
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh
@@ -148,9 +163,11 @@ export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
             <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>No orders here yet.</p>
+            <p>{search ? 'No orders match your search.' : 'No orders here yet.'}</p>
             <p className="text-xs mt-1">
-              {userType === 'buyer'
+              {search
+                ? 'Try a different product name.'
+                : userType === 'buyer'
                 ? 'Browse the marketplace and tap “Buy Now” to place your first order.'
                 : 'Orders from buyers will appear here.'}
             </p>
@@ -220,7 +237,11 @@ export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
                             {isUpdating ? 'Updating…' : 'Mark Completed'}
                           </button>
                         )}
-                        <button className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs rounded-xl hover:bg-slate-50 flex items-center gap-1">
+                        <button
+                          disabled
+                          title="Messaging is coming soon"
+                          className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs rounded-xl flex items-center gap-1 opacity-60 cursor-not-allowed"
+                        >
                           <MessageCircle className="w-3 h-3" /> Message
                         </button>
                       </div>

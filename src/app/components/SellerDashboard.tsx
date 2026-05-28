@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DollarSign, Star, Package, CheckCircle, AlertTriangle, LayoutDashboard, Box,
   User, Settings, LogOut, ChevronDown, Save, ShieldCheck, Bell, Menu, ShoppingCart,
@@ -40,26 +40,38 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestRef.current;
+    const isActive = () => mountedRef.current && requestId === requestRef.current;
     if (!user) {
-      setOrders([]);
-      setProducts([]);
-      setIsLoading(false);
+      if (isActive()) {
+        setOrders([]);
+        setProducts([]);
+        setIsLoading(false);
+      }
       return;
     }
-    setIsLoading(true);
+    if (isActive()) setIsLoading(true);
     try {
       const [o, p] = await Promise.all([listOrdersForSeller(user.id), listProductsBySeller(user.id)]);
-      setOrders(o);
-      setProducts(p);
+      if (isActive()) {
+        setOrders(o);
+        setProducts(p);
+      }
     } finally {
-      setIsLoading(false);
+      if (isActive()) setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [refresh]);
 
   const pendingOrders = orders.filter((o) => o.status === 'pending');
@@ -84,7 +96,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
       if (!ok) return;
       await refresh();
     } finally {
-      setUpdatingOrderId(null);
+      if (mountedRef.current) setUpdatingOrderId(null);
     }
   };
 
@@ -373,7 +385,8 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                   <input
                     type="text"
                     defaultValue={userName}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    disabled
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500"
                   />
                 </div>
                 <div>
@@ -381,7 +394,8 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                   <textarea
                     rows={3}
                     defaultValue="Student Entrepreneur on BUMarket."
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                    disabled
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500 resize-none"
                   />
                 </div>
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
@@ -390,7 +404,8 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                 </div>
                 <button
                   type="button"
-                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                  disabled
+                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm flex items-center justify-center gap-2 opacity-60 cursor-not-allowed"
                 >
                   <Save className="w-4 h-4" /> Save Changes
                 </button>

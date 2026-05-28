@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { listProducts, DbProduct } from '../../lib/db';
 import { mergeProducts } from './productFeed';
 import { Product } from './mockProducts';
@@ -11,19 +11,27 @@ export function useProducts(): {
 } {
   const [dbProducts, setDbProducts] = useState<DbProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
-    setIsLoading(true);
+    const requestId = ++requestRef.current;
+    const isActive = () => mountedRef.current && requestId === requestRef.current;
+    if (isActive()) setIsLoading(true);
     try {
       const rows = await listProducts();
-      setDbProducts(rows);
+      if (isActive()) setDbProducts(rows);
     } finally {
-      setIsLoading(false);
+      if (isActive()) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [refresh]);
 
   return {

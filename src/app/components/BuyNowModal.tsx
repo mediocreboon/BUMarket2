@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, MapPin, Wallet, Banknote, X, AlertTriangle } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Product } from '../data/mockProducts';
@@ -20,9 +20,17 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
   const [isPlacing, setIsPlacing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const mountedRef = useRef(true);
 
   const isRealProduct = UUID_RE.test(product.id); // only DB products can be ordered for real
   const isOwnProduct = !!user && user.id === product.sellerId;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const handleConfirm = async () => {
     setError('');
@@ -53,9 +61,11 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
           payment_method: method,
         });
         if (!order) {
-          setError(
-            "Couldn't place your order. The product may be out of stock, or the Supabase schema may need to be updated."
-          );
+          if (mountedRef.current) {
+            setError(
+              "Couldn't place your order. The product may be out of stock, or the Supabase schema may need to be updated."
+            );
+          }
           return;
         }
       } else {
@@ -65,11 +75,11 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
       await Promise.resolve(onOrderPlaced?.()).catch((refreshError) => {
         console.error('[BuyNowModal] post-order refresh failed:', refreshError);
       });
-      setSuccess(true);
+      if (mountedRef.current) setSuccess(true);
     } catch (e: any) {
-      setError(e?.message || 'Something went wrong.');
+      if (mountedRef.current) setError(e?.message || 'Something went wrong.');
     } finally {
-      setIsPlacing(false);
+      if (mountedRef.current) setIsPlacing(false);
     }
   };
 
