@@ -1,13 +1,22 @@
-# BUMarket — Capstone Demo Marketplace
+BUMarket — Web-Based Marketplace for Bicol University Students
 
-A presentation-ready, student-entrepreneur marketplace built for academic
-evaluation. Designed for **stability**, **smooth demo flow**, and **working
-CRUD** — not for production.
+BUMarket is a web-based marketplace platform designed for Bicol University students to buy, sell, and manage products within the university community.
 
-- **Buyer**, **Seller**, and a hidden **Admin** role
-- Authentication, marketplace browsing, product CRUD, order workflow
-- Database-backed notifications + a context-aware FAQ chatbot
-- Built with **React + TypeScript + Tailwind CSS + Supabase**
+The platform provides a streamlined marketplace experience featuring:
+
+Buyer, Seller, and Admin roles
+Product browsing and management
+Order and transaction workflow
+Notifications system
+Context-aware support chatbot
+Responsive and user-friendly interface
+
+Built using:
+
+React
+TypeScript
+Tailwind CSS
+Supabase
 
 ---
 
@@ -109,9 +118,10 @@ That's it — the app is now wired to your Supabase project.
 - Role detected from `profiles` table, automatic dashboard routing
 
 ### Marketplace
-- Mixed feed of real seller products + curated mock products
-- Search, category filters, price/condition/rating filters
-- Featured + trending sections on the buyer home
+- Browse marketplace products
+- Search and category filtering
+- Featured and trending product sections
+- Combination of seller-uploaded and curated products
 
 ### Product Management (Seller)
 - Full CRUD via Supabase (`products` table)
@@ -125,24 +135,33 @@ That's it — the app is now wired to your Supabase project.
 - Buyers can mark a confirmed order as received
 
 ### Notifications
-- Database-backed (`notifications` table) — no realtime, no push
-- Order placed / confirmed / completed events automatically generate
-  notifications for both parties
-- Click a notification to mark it read
+- Order-related notification system
+- Notification read/unread tracking
+- Notifications for:
+   - order placement
+   - order confirmation
+   - completed transactions
 
 ### Chatbot
-- Keyword-based FAQ chatbot (BUBot)
-- Context-aware tips for the page you're currently on
-- No external AI calls — fully local
+- FAQ-based support chatbot
+- Context-aware marketplace assistance
+- Product and order guidance
+- Lightweight local chatbot implementation
 
 ### Admin Dashboard
 - View users, products, and orders
-- Visual-only "verified" badge — admins do not block user access
+- Marketplace overview dashboard
+- Seller verification badge management
 
 ### Future Enhancements (labeled in the UI)
-- Real-time messaging, push notifications, real payment gateway, refunds,
-  advanced analytics, recommendation engine, and the E-Wallet (top-up,
-  transfers, balances) are all marked **Coming Soon / Future Enhancement**.
+The platform also includes planned enhancements that may be expanded in future versions, such as:
+
+- E-Wallet integration
+- Real-time messaging
+- Advanced analytics
+- Recommendation systems
+- Push notifications
+- Online payment gateway integration
 
 ---
 
@@ -207,4 +226,4 @@ BUMarket/
 
 ## 8. License
 
-Built for academic evaluation. Not intended for production use.
+This project was developed as a web-based marketplace platform for Bicol University students.
