@@ -7,13 +7,14 @@ import { Favorites } from './Favorites';
 import { MyProfile } from './MyProfile';
 import { EWallet } from './EWallet';
 import { AIChatbot } from './AIChatbot';
+import { NotificationsPanel } from './NotificationsPanel';
 
 interface BuyerLayoutProps {
   userName: string;
   onLogout: () => void;
 }
 
-type BuyerView = 'home' | 'marketplace' | 'orders' | 'favorites' | 'profile' | 'wallet';
+type BuyerView = 'home' | 'marketplace' | 'orders' | 'favorites' | 'notifications' | 'profile' | 'wallet';
 
 const navItems = [
   { id: 'home', label: 'Home', icon: Home },
@@ -23,6 +24,7 @@ const navItems = [
 ];
 
 const accountItems = [
+  { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'profile', label: 'My Profile', icon: User },
   { id: 'wallet', label: 'E-Wallet', icon: Wallet },
 ];
@@ -30,6 +32,8 @@ const accountItems = [
 export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
   const [activeView, setActiveView] = useState<BuyerView>('home');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const displayName = userName.trim() || 'Buyer';
+  const initial = displayName.charAt(0).toUpperCase();
 
   const Sidebar = (
     <div className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-white border-r border-slate-100 min-h-screen flex flex-col transition-all duration-200 flex-shrink-0`}>
@@ -55,10 +59,10 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
         <div className="px-4 py-3 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0">
-              {userName.charAt(0).toUpperCase()}
+              {initial}
             </div>
             <div className="overflow-hidden">
-              <p className="text-slate-800 text-sm font-medium truncate">{userName}</p>
+              <p className="text-slate-800 text-sm font-medium truncate">{displayName}</p>
               <div className="flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-blue-500" />
                 <p className="text-xs text-blue-500">Student Buyer</p>
@@ -137,13 +141,14 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
           <BuyerHome
             userName={displayName}
             onNavigateToMarketplace={() => setActiveView('marketplace')}
+            onOpenNotifications={() => setActiveView('notifications')}
           />
         )}
-        {activeView === 'marketplace' && <Marketplace userName={userName} userType="buyer" />}
+        {activeView === 'marketplace' && <Marketplace userName={displayName} userType="buyer" />}
         {activeView === 'orders' && <MyOrders userType="buyer" />}
         {activeView === 'favorites' && <Favorites />}
         {activeView === 'notifications' && <NotificationsPanel />}
-        {activeView === 'profile' && <MyProfile userName={userName} userType="buyer" />}
+        {activeView === 'profile' && <MyProfile userName={displayName} userType="buyer" />}
         {activeView === 'wallet' && <EWallet />}
       </div>
       <AIChatbot context="buyer" page={activeView} />
