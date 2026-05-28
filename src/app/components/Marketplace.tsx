@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Search, SlidersHorizontal, X, ChevronDown, Star, ShieldCheck } from 'lucide-react';
+import { Search, SlidersHorizontal, X, ChevronDown, Star, ShieldCheck, RefreshCw } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductDetails } from './ProductDetails';
-import { mockProducts, categories, Product } from '../data/mockProducts';
+import { categories, Product } from '../data/mockProducts';
+import { useProducts } from '../data/useProducts';
 
 interface MarketplaceProps {
   userName: string;
@@ -20,6 +21,8 @@ const PRICE_RANGES = [
 const CONDITIONS = ['All', 'new', 'like-new', 'used', 'service'];
 
 export function Marketplace({ userName, userType }: MarketplaceProps) {
+  void userName;
+  void userType;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedPriceRange, setSelectedPriceRange] = useState(0);
@@ -28,10 +31,11 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const { products, isLoading, refresh } = useProducts();
 
   const priceRange = PRICE_RANGES[selectedPriceRange];
 
-  let filtered = mockProducts.filter(p => {
+  let filtered = products.filter(p => {
     const matchSearch = !searchQuery || p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.seller.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -67,8 +71,19 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
     setVerifiedOnly(false);
   };
 
-  if (selectedProduct) {
-    return <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />;
+  const currentProduct = selectedProduct
+    ? products.find((p) => p.id === selectedProduct.id) ?? selectedProduct
+    : null;
+
+  if (currentProduct) {
+    return (
+      <ProductDetails
+        product={currentProduct}
+        products={products}
+        onBack={() => setSelectedProduct(null)}
+        onInventoryChanged={refresh}
+      />
+    );
   }
 
   return (
@@ -253,7 +268,12 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
           {filtered.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {filtered.map(product => (
-                <ProductCard key={product.id} product={product} onViewDetails={setSelectedProduct} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onViewDetails={setSelectedProduct}
+                  onInventoryChanged={refresh}
+                />
               ))}
             </div>
           ) : (

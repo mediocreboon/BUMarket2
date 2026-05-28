@@ -4,17 +4,19 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Product } from '../data/mockProducts';
 import { useAuth } from '../context/AuthContext';
 import { createOrder, createNotification, DbProduct } from '../../lib/db';
+import { dbProductToUiProduct } from '../data/productFeed';
 
 interface BuyNowModalProps {
   product: Product;
   onClose: () => void;
+  onOrderPlaced?: () => Promise<void> | void;
 }
 
 type PaymentMethod = 'buy_now' | 'cash_on_pickup';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function BuyNowModal({ product, onClose }: BuyNowModalProps) {
+export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProps) {
   const { user } = useAuth();
   const [method, setMethod] = useState<PaymentMethod>('cash_on_pickup');
   const [isPlacing, setIsPlacing] = useState(false);
@@ -39,6 +41,10 @@ export function BuyNowModal({ product, onClose }: BuyNowModalProps) {
       setError('You cannot order your own product.');
       return;
     }
+    if (product.stock <= 0) {
+      setError('This product is currently out of stock.');
+      return;
+    }
 
     setIsPlacing(true);
     try {
@@ -50,7 +56,7 @@ export function BuyNowModal({ product, onClose }: BuyNowModalProps) {
         });
         if (!order) {
           setError(
-            "Couldn't save your order. The Supabase tables may not be set up yet. See supabase/schema.sql."
+            "Couldn't place your order. The product may be out of stock, or the Supabase schema may need to be updated."
           );
           return;
         }
@@ -64,6 +70,7 @@ export function BuyNowModal({ product, onClose }: BuyNowModalProps) {
         // Mock product — show success without persisting (demo only)
         await new Promise((r) => setTimeout(r, 400));
       }
+      await onOrderPlaced?.();
       setSuccess(true);
     } catch (e: any) {
       setError(e?.message || 'Something went wrong.');
@@ -123,6 +130,9 @@ export function BuyNowModal({ product, onClose }: BuyNowModalProps) {
             <p className="text-slate-800 text-sm font-medium line-clamp-2">{product.title}</p>
             <p className="text-blue-600 font-semibold">₱{product.price.toLocaleString()}</p>
             <p className="text-slate-500 text-xs truncate">Seller: {product.seller}</p>
+            <p className="text-slate-400 text-xs">
+              {product.stock > 0 ? `${product.stock} available` : 'Out of stock'}
+            </p>
           </div>
         </div>
 
@@ -194,10 +204,10 @@ export function BuyNowModal({ product, onClose }: BuyNowModalProps) {
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isPlacing}
+            disabled={isPlacing || product.stock <= 0}
             className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-60"
           >
-            {isPlacing ? 'Placing…' : 'Place Order'}
+            {isPlacing ? 'Placing…' : product.stock <= 0 ? 'Out of Stock' : 'Place Order'}
           </button>
         </div>
       </div>
@@ -207,7 +217,5 @@ export function BuyNowModal({ product, onClose }: BuyNowModalProps) {
 
 // Adapter so DB products can be passed via the same modal directly when needed.
 export function dbProductForModal(p: DbProduct): Product {
-  void p;
-  // Not currently used — placeholder for future expansion.
-  return {} as any;
+  return dbProductToUiProduct(p);
 }

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Search, ArrowRight, ShieldCheck, Zap, Star, TrendingUp, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductDetails } from './ProductDetails';
-import { mockProducts, categories, mockSellers, Product } from '../data/mockProducts';
+import { categories, mockSellers, Product } from '../data/mockProducts';
+import { useProducts } from '../data/useProducts';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 const HERO_BG = 'https://scontent.fmnl3-2.fna.fbcdn.net/v/t39.30808-6/506598061_1193219059517264_1907555190436737450_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=100&ccb=1-7&_nc_sid=7b2446&_nc_eui2=AeGfuZ8Vs6Jp2NtRJF-NeRAYPXJehY0gZuk9cl6FjSBm6SD_kvoNY3RIPcDgJs-jt-dOY_LlRb3QrYcmLqYRlGOX&_nc_ohc=vssUgdR6-zwQ7kNvwFbV0kV&_nc_oc=AdrHrawBcb9OfhGPdcTTmTxtP12nkCmjsFmff546e7O_KSa9Hmry-lkS5nJrX1dzMYU&_nc_zt=23&_nc_ht=scontent.fmnl3-2.fna&_nc_gid=XRvzr8K03dkWXoYz8PWbEA&_nc_ss=7b2a8&oh=00_Af5RdMgdECnPeFJ7rUvZLVd-F4Ak3HJGiMGappVF1KJ3mg&oe=6A089670';
@@ -22,9 +23,10 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [announcementIdx, setAnnouncementIdx] = useState(0);
+  const { products, refresh } = useProducts();
 
-  const featuredProducts = mockProducts.filter(p => p.isFeatured);
-  const popularProducts = mockProducts.filter(p => p.isPopular);
+  const featuredProducts = products.filter(p => p.isFeatured).slice(0, 4);
+  const popularProducts = products.filter(p => p.isPopular).slice(0, 4);
   const announcement = ANNOUNCEMENTS[announcementIdx];
 
   const handleSearch = (e: React.FormEvent) => {
@@ -32,8 +34,19 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
     if (searchQuery.trim()) onNavigateToMarketplace();
   };
 
-  if (selectedProduct) {
-    return <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />;
+  const currentProduct = selectedProduct
+    ? products.find((p) => p.id === selectedProduct.id) ?? selectedProduct
+    : null;
+
+  if (currentProduct) {
+    return (
+      <ProductDetails
+        product={currentProduct}
+        products={products}
+        onBack={() => setSelectedProduct(null)}
+        onInventoryChanged={refresh}
+      />
+    );
   }
 
   return (
@@ -135,8 +148,13 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {featuredProducts.slice(0, 4).map((product) => (
-              <ProductCard key={product.id} product={product} onViewDetails={setSelectedProduct} />
+            {featuredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onViewDetails={setSelectedProduct}
+                onInventoryChanged={refresh}
+              />
             ))}
           </div>
         </div>
@@ -154,7 +172,12 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {popularProducts.map((product) => (
-              <ProductCard key={product.id} product={product} onViewDetails={setSelectedProduct} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                onViewDetails={setSelectedProduct}
+                onInventoryChanged={refresh}
+              />
             ))}
           </div>
         </div>

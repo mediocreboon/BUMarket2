@@ -152,6 +152,162 @@ create policy orders_update_party on public.orders
     or auth.uid() in (select seller_id from public.products where id = orders.product_id)
   );
 
+-- Inventory-safe order creation. The app calls this RPC instead of inserting an
+-- order directly so stock cannot go below zero when multiple buyers order at once.
+create or replace function public.create_order_with_inventory(
+  p_buyer_id uuid,
+  p_product_id uuid,
+  p_payment_method text
+)
+returns table (
+  id uuid,
+  buyer_id uuid,
+  product_id uuid,
+  status text,
+  payment_method text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid := auth.uid();
+  product_seller_id uuid;
+  current_stock int;
+  created_order_id uuid;
+begin
+  if actor_id is null or actor_id <> p_buyer_id then
+    raise exception 'not_authenticated';
+  end if;
+
+  if p_payment_method not in ('buy_now', 'cash_on_pickup') then
+    raise exception 'invalid_payment_method';
+  end if;
+
+  select p.seller_id, p.stock
+    into product_seller_id, current_stock
+  from public.products p
+  where p.id = p_product_id
+  for update;
+
+  if not found then
+    raise exception 'product_not_found';
+  end if;
+
+  if product_seller_id = p_buyer_id then
+    raise exception 'cannot_order_own_product';
+  end if;
+
+  if current_stock <= 0 then
+    raise exception 'out_of_stock';
+  end if;
+
+  update public.products
+  set stock = stock - 1
+  where products.id = p_product_id;
+
+  insert into public.orders (buyer_id, product_id, payment_method, status)
+  values (p_buyer_id, p_product_id, p_payment_method, 'pending')
+  returning orders.id into created_order_id;
+
+  return query
+  select o.id, o.buyer_id, o.product_id, o.status, o.payment_method, o.created_at
+  from public.orders o
+  where o.id = created_order_id;
+end;
+$$;
+
+grant execute on function public.create_order_with_inventory(uuid, uuid, text) to authenticated;
+
+-- Inventory-safe order status updates. Cancelling a reserved order returns the
+-- reserved unit to stock, while reopening a cancelled order reserves stock again.
+create or replace function public.update_order_status_with_inventory(
+  p_order_id uuid,
+  p_status text
+)
+returns table (
+  id uuid,
+  buyer_id uuid,
+  product_id uuid,
+  status text,
+  payment_method text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid := auth.uid();
+  existing record;
+  current_stock int;
+begin
+  if actor_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if p_status not in ('pending', 'confirmed', 'completed', 'cancelled') then
+    raise exception 'invalid_order_status';
+  end if;
+
+  select
+    o.id,
+    o.buyer_id,
+    o.product_id,
+    o.status,
+    o.payment_method,
+    o.created_at,
+    p.seller_id
+  into existing
+  from public.orders o
+  join public.products p on p.id = o.product_id
+  where o.id = p_order_id
+  for update of o, p;
+
+  if not found then
+    raise exception 'order_not_found';
+  end if;
+
+  if actor_id <> existing.buyer_id and actor_id <> existing.seller_id then
+    raise exception 'not_allowed';
+  end if;
+
+  if existing.status <> p_status then
+    if p_status = 'cancelled' then
+      update public.products
+      set stock = stock + 1
+      where products.id = existing.product_id;
+    elsif existing.status = 'cancelled' then
+      select p.stock
+        into current_stock
+      from public.products p
+      where p.id = existing.product_id
+      for update;
+
+      if current_stock <= 0 then
+        raise exception 'out_of_stock';
+      end if;
+
+      update public.products
+      set stock = stock - 1
+      where products.id = existing.product_id;
+    end if;
+
+    update public.orders
+    set status = p_status
+    where orders.id = p_order_id;
+  end if;
+
+  return query
+  select o.id, o.buyer_id, o.product_id, o.status, o.payment_method, o.created_at
+  from public.orders o
+  where o.id = p_order_id;
+end;
+$$;
+
+grant execute on function public.update_order_status_with_inventory(uuid, text) to authenticated;
+
 -- notifications: a user only sees their own notifications.
 drop policy if exists notifications_select_self on public.notifications;
 create policy notifications_select_self on public.notifications

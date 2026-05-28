@@ -39,5 +39,9 @@ export function dbProductToUiProduct(p: DbProduct): Product {
 // added seller products appear at the top of every list.
 export function mergeProducts(dbProducts: DbProduct[]): Product[] {
   const mapped = dbProducts.map(dbProductToUiProduct);
-  return [...mapped, ...mockProducts];
+  const dbKeys = new Set(mapped.map((p) => `${p.title.toLowerCase()}::${p.category.toLowerCase()}`));
+  const fallbackProducts = mockProducts.filter(
+    (p) => !dbKeys.has(`${p.title.toLowerCase()}::${p.category.toLowerCase()}`)
+  );
+  return [...mapped, ...fallbackProducts];
 }

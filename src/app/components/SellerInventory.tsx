@@ -46,7 +46,11 @@ export function SellerInventory() {
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setProducts([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const rows = await listProductsBySeller(user.id);
@@ -90,8 +94,13 @@ export function SellerInventory() {
 
   const handleDelete = async (p: DbProduct) => {
     if (!confirm(`Delete "${p.title}"?`)) return;
+    setError('');
     const ok = await deleteProduct(p.id);
-    if (ok) setProducts((prev) => prev.filter((x) => x.id !== p.id));
+    if (ok) {
+      setProducts((prev) => prev.filter((x) => x.id !== p.id));
+    } else {
+      setError('Failed to delete product.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,17 +108,24 @@ export function SellerInventory() {
     setError('');
     if (!user) return;
     if (!form.title.trim()) return setError('Please enter a product title.');
-    const price = parseFloat(form.price);
-    if (Number.isNaN(price) || price < 0) return setError('Please enter a valid price.');
-    const stock = parseInt(form.stock || '0', 10);
-    if (Number.isNaN(stock) || stock < 0) return setError('Please enter a valid stock quantity.');
+    const price = Number(form.price);
+    if (!Number.isFinite(price) || price < 0) return setError('Please enter a valid price.');
+    const stock = Number(form.stock);
+    if (!Number.isInteger(stock) || stock < 0) return setError('Please enter a valid whole-number stock quantity.');
+    if (imageFile && imageFile.size > 5 * 1024 * 1024) {
+      return setError('Please choose an image smaller than 5MB.');
+    }
 
     setIsSaving(true);
     try {
       let imageUrl = form.image_url;
       if (imageFile) {
         const uploaded = await uploadProductImage(imageFile, user.id);
-        if (uploaded) imageUrl = uploaded;
+        if (!uploaded) {
+          setError('Failed to upload product image.');
+          return;
+        }
+        imageUrl = uploaded;
       }
 
       const payload = {
@@ -142,7 +158,7 @@ export function SellerInventory() {
       setForm(EMPTY_FORM);
       setImageFile(null);
       setEditingId(null);
-      refresh();
+      await refresh();
     } finally {
       setIsSaving(false);
     }
@@ -201,6 +217,12 @@ export function SellerInventory() {
           className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
         />
       </div>
+
+      {error && !showFormModal && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-xl mb-4">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {isLoading && products.length === 0 ? (

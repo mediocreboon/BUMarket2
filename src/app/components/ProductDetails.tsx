@@ -3,27 +3,29 @@ import { ArrowLeft, Star, ShieldCheck, MapPin, MessageCircle, Heart, Share2, Tag
 import { Product, mockProducts, mockReviews } from '../data/mockProducts';
 import { ProductCard } from './ProductCard';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { BuyNowModal } from './BuyNowModal';
 
 interface ProductDetailsProps {
   product: Product;
+  products?: Product[];
   onBack: () => void;
+  onInventoryChanged?: () => Promise<void> | void;
 }
 
-export function ProductDetails({ product, onBack }: ProductDetailsProps) {
+export function ProductDetails({
+  product,
+  products = mockProducts,
+  onBack,
+  onInventoryChanged,
+}: ProductDetailsProps) {
   const [currentImg, setCurrentImg] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'reviews' | 'seller'>('details');
-  const [showReserveModal, setShowReserveModal] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
+  const [showBuyModal, setShowBuyModal] = useState(false);
 
   const reviews = mockReviews.filter(r => r.productId === product.id);
-  const related = mockProducts.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+  const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
   const images = product.images?.length ? product.images : [product.image];
-
-  const handleReserveConfirm = () => {
-    setShowReserveModal(false);
-    alert(`✅ Reservation confirmed for "${product.title}"!\nThe seller will contact you to arrange a campus meet-up.`);
-  };
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50">
@@ -165,11 +167,11 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowReserveModal(true)}
-                disabled={product.stock === 0}
+                onClick={() => setShowBuyModal(true)}
+                disabled={product.stock <= 0}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                {product.stock === 0 ? 'Out of Stock' : 'Reserve Now'}
+                {product.stock <= 0 ? 'Out of Stock' : 'Reserve Now'}
               </button>
               <button className="px-4 py-3 border border-blue-200 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-5 h-5" />
@@ -287,7 +289,6 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setChatMessage('')}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm"
                   >
                     <MessageCircle className="w-4 h-4" /> Message Seller
@@ -307,14 +308,25 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
             <h3 className="text-slate-800 mb-4">More in {product.category}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {related.map(p => (
-                <ProductCard key={p.id} product={p} compact />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  compact
+                  onInventoryChanged={onInventoryChanged}
+                />
               ))}
             </div>
           </div>
         )}
       </div>
 
-      {showBuyModal && <BuyNowModal product={product} onClose={() => setShowBuyModal(false)} />}
+      {showBuyModal && (
+        <BuyNowModal
+          product={product}
+          onClose={() => setShowBuyModal(false)}
+          onOrderPlaced={onInventoryChanged}
+        />
+      )}
     </div>
   );
 }
