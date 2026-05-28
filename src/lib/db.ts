@@ -32,8 +32,8 @@ export interface DbOrder {
   id: string;
   buyer_id: string;
   product_id: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  payment_method: 'buy_now' | 'cash_on_pickup';
+  status: OrderStatus;
+  payment_method: PaymentMethod;
   created_at: string;
   // optional joined fields
   product?: DbProduct;
@@ -46,6 +46,18 @@ export interface DbNotification {
   message: string;
   is_read: boolean;
   created_at: string;
+}
+
+type ProductInput = Pick<
+  DbProduct,
+  'seller_id' | 'title' | 'description' | 'price' | 'category' | 'image_url' | 'stock' | 'location'
+>;
+
+export type OrderStatus = 'pending' | 'confirmed' | 'completed';
+export type PaymentMethod = 'buy_now' | 'cash_on_pickup';
+
+function uniqueById<T extends { id: string }>(rows: T[]): T[] {
+  return Array.from(new Map(rows.map((row) => [row.id, row])).values());
 }
 
 // ─── Profiles ───────────────────────────────────────────────────────────────
@@ -110,7 +122,7 @@ export async function listProductsBySeller(sellerId: string): Promise<DbProduct[
   return (data || []) as DbProduct[];
 }
 
-export async function createProduct(input: Omit<DbProduct, 'id' | 'created_at'>): Promise<DbProduct | null> {
+export async function createProduct(input: ProductInput): Promise<DbProduct | null> {
   const { data, error } = await supabase.from('products').insert(input).select('*').single();
   if (error) {
     console.error('[db] createProduct error:', error.message);
@@ -119,7 +131,7 @@ export async function createProduct(input: Omit<DbProduct, 'id' | 'created_at'>)
   return data as DbProduct;
 }
 
-export async function updateProduct(id: string, patch: Partial<DbProduct>): Promise<boolean> {
+export async function updateProduct(id: string, patch: Partial<ProductInput>): Promise<boolean> {
   const { error } = await supabase.from('products').update(patch).eq('id', id);
   if (error) console.error('[db] updateProduct error:', error.message);
   return !error;
@@ -157,18 +169,28 @@ export async function uploadProductImage(file: File, userId: string): Promise<st
 export async function createOrder(input: {
   buyer_id: string;
   product_id: string;
-  payment_method: 'buy_now' | 'cash_on_pickup';
+  payment_method: PaymentMethod;
 }): Promise<DbOrder | null> {
-  const { data, error } = await supabase
-    .from('orders')
-    .insert({ ...input, status: 'pending' })
-    .select('*')
+  const { data: rpcData, error: rpcError } = await supabase
+    .rpc('create_order_with_inventory', {
+      p_buyer_id: input.buyer_id,
+      p_product_id: input.product_id,
+      p_payment_method: input.payment_method,
+    })
     .single();
-  if (error) {
-    console.error('[db] createOrder error:', error.message);
+
+  if (!rpcError) {
+    return rpcData as DbOrder;
+  }
+
+  const code = (rpcError as any).code;
+  if (code === 'P0001') {
+    console.error('[db] createOrder transaction error:', rpcError.message);
     return null;
   }
-  return data as DbOrder;
+
+  console.error('[db] createOrder rpc error:', rpcError.message);
+  return null;
 }
 
 export async function listOrdersForBuyer(buyerId: string): Promise<DbOrder[]> {
@@ -181,7 +203,7 @@ export async function listOrdersForBuyer(buyerId: string): Promise<DbOrder[]> {
     console.error('[db] listOrdersForBuyer error:', error.message);
     return [];
   }
-  return (data || []) as DbOrder[];
+  return uniqueById((data || []) as DbOrder[]);
 }
 
 export async function listOrdersForSeller(sellerId: string): Promise<DbOrder[]> {
@@ -194,7 +216,7 @@ export async function listOrdersForSeller(sellerId: string): Promise<DbOrder[]> 
     console.error('[db] listOrdersForSeller error:', error.message);
     return [];
   }
-  return (data || []) as DbOrder[];
+  return uniqueById((data || []) as DbOrder[]);
 }
 
 export async function listAllOrders(): Promise<DbOrder[]> {
@@ -206,16 +228,30 @@ export async function listAllOrders(): Promise<DbOrder[]> {
     console.error('[db] listAllOrders error:', error.message);
     return [];
   }
-  return (data || []) as DbOrder[];
+  return uniqueById((data || []) as DbOrder[]);
 }
 
 export async function updateOrderStatus(
   orderId: string,
-  status: DbOrder['status']
+  status: OrderStatus
 ): Promise<boolean> {
-  const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
-  if (error) console.error('[db] updateOrderStatus error:', error.message);
-  return !error;
+  const { error: rpcError } = await supabase
+    .rpc('update_order_status_with_inventory', {
+      p_order_id: orderId,
+      p_status: status,
+    })
+    .single();
+
+  if (!rpcError) return true;
+
+  const code = (rpcError as any).code;
+  if (code === 'P0001') {
+    console.error('[db] updateOrderStatus transaction error:', rpcError.message);
+    return false;
+  }
+
+  console.error('[db] updateOrderStatus rpc error:', rpcError.message);
+  return false;
 }
 
 // ─── Notifications ──────────────────────────────────────────────────────────
@@ -238,7 +274,7 @@ export async function listNotifications(userId: string): Promise<DbNotification[
     console.error('[db] listNotifications error:', error.message);
     return [];
   }
-  return (data || []) as DbNotification[];
+  return uniqueById((data || []) as DbNotification[]);
 }
 
 export async function markNotificationRead(id: string): Promise<boolean> {

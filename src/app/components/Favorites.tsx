@@ -12,7 +12,14 @@ export function Favorites() {
   const favoriteProducts = mockProducts.filter(p => favoriteIds.includes(p.id));
 
   if (selectedProduct) {
-    return <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />;
+    return (
+      <ProductDetails
+        product={selectedProduct}
+        products={mockProducts}
+        onBack={() => setSelectedProduct(null)}
+        onViewProduct={setSelectedProduct}
+      />
+    );
   }
 
   return (

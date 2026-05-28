@@ -1,28 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Star, ShieldCheck, MapPin, MessageCircle, Heart, Share2, Tag, Package, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { Product, mockProducts, mockReviews } from '../data/mockProducts';
 import { ProductCard } from './ProductCard';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { BuyNowModal } from './BuyNowModal';
 
 interface ProductDetailsProps {
   product: Product;
+  products?: Product[];
   onBack: () => void;
+  onViewProduct?: (product: Product) => void;
+  onInventoryChanged?: () => Promise<void> | void;
 }
 
-export function ProductDetails({ product, onBack }: ProductDetailsProps) {
+export function ProductDetails({
+  product,
+  products = mockProducts,
+  onBack,
+  onViewProduct,
+  onInventoryChanged,
+}: ProductDetailsProps) {
   const [currentImg, setCurrentImg] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'reviews' | 'seller'>('details');
-  const [showReserveModal, setShowReserveModal] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
+  const [showBuyModal, setShowBuyModal] = useState(false);
 
   const reviews = mockReviews.filter(r => r.productId === product.id);
-  const related = mockProducts.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+  const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
   const images = product.images?.length ? product.images : [product.image];
+  const currentImage = images[Math.min(currentImg, images.length - 1)] || product.image;
+  const sellerInitial = product.seller?.[0]?.toUpperCase() || '?';
 
-  const handleReserveConfirm = () => {
-    setShowReserveModal(false);
-    alert(`✅ Reservation confirmed for "${product.title}"!\nThe seller will contact you to arrange a campus meet-up.`);
+  useEffect(() => {
+    setCurrentImg(0);
+    setShowBuyModal(false);
+  }, [product.id]);
+
+  const handleShare = async () => {
+    const shareData = {
+      title: product.title,
+      text: `Check out "${product.title}" on BUMarket.`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard?.writeText(shareData.url);
+      }
+    } catch {
+      // Sharing can be cancelled by the user; no UI change is needed.
+    }
   };
 
   return (
@@ -38,7 +67,7 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
         <button onClick={() => setIsFavorite(!isFavorite)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-500'}`} />
         </button>
-        <button className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+        <button onClick={handleShare} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <Share2 className="w-5 h-5 text-slate-500" />
         </button>
       </div>
@@ -49,7 +78,7 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
           <div>
             <div className="relative bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm h-72 md:h-80">
               <ImageWithFallback
-                src={images[currentImg]}
+                src={currentImage}
                 alt={product.title}
                 className="w-full h-full object-cover"
               />
@@ -165,13 +194,17 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowReserveModal(true)}
-                disabled={product.stock === 0}
+                onClick={() => setShowBuyModal(true)}
+                disabled={product.stock <= 0}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                {product.stock === 0 ? 'Out of Stock' : 'Reserve Now'}
+                {product.stock <= 0 ? 'Out of Stock' : 'Reserve Now'}
               </button>
-              <button className="px-4 py-3 border border-blue-200 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors">
+              <button
+                disabled
+                title="Messaging is coming soon"
+                className="px-4 py-3 border border-blue-200 text-blue-600 rounded-xl opacity-60 cursor-not-allowed"
+              >
                 <MessageCircle className="w-5 h-5" />
               </button>
               <button
@@ -260,7 +293,7 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
               <div>
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-xl text-blue-600 font-bold">{product.seller[0]}</span>
+                    <span className="text-xl text-blue-600 font-bold">{sellerInitial}</span>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -287,12 +320,17 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setChatMessage('')}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+                    disabled
+                    title="Messaging is coming soon"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl text-sm opacity-60 cursor-not-allowed"
                   >
                     <MessageCircle className="w-4 h-4" /> Message Seller
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm">
+                  <button
+                    disabled
+                    title="Seller shop pages are coming soon"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm opacity-60 cursor-not-allowed"
+                  >
                     View Shop
                   </button>
                 </div>
@@ -307,14 +345,26 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
             <h3 className="text-slate-800 mb-4">More in {product.category}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {related.map(p => (
-                <ProductCard key={p.id} product={p} compact />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  compact
+                  onViewDetails={onViewProduct}
+                  onInventoryChanged={onInventoryChanged}
+                />
               ))}
             </div>
           </div>
         )}
       </div>
 
-      {showBuyModal && <BuyNowModal product={product} onClose={() => setShowBuyModal(false)} />}
+      {showBuyModal && (
+        <BuyNowModal
+          product={product}
+          onClose={() => setShowBuyModal(false)}
+          onOrderPlaced={onInventoryChanged}
+        />
+      )}
     </div>
   );
 }

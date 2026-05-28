@@ -70,7 +70,7 @@ create table if not exists public.orders (
   id              uuid primary key default gen_random_uuid(),
   buyer_id        uuid not null references public.profiles(id) on delete cascade,
   product_id      uuid not null references public.products(id) on delete cascade,
-  status          text not null default 'pending' check (status in ('pending','confirmed','completed','cancelled')),
+  status          text not null default 'pending' check (status in ('pending','confirmed','completed')),
   payment_method  text not null default 'cash_on_pickup' check (payment_method in ('buy_now','cash_on_pickup')),
   created_at      timestamptz not null default now()
 );
@@ -78,6 +78,17 @@ create table if not exists public.orders (
 create index if not exists orders_buyer_idx on public.orders(buyer_id);
 create index if not exists orders_product_idx on public.orders(product_id);
 create index if not exists orders_status_idx on public.orders(status);
+
+update public.orders
+set status = 'completed'
+where status not in ('pending', 'confirmed', 'completed');
+
+alter table public.orders
+  drop constraint if exists orders_status_check;
+
+alter table public.orders
+  add constraint orders_status_check
+  check (status in ('pending', 'confirmed', 'completed'));
 
 -- ---------------------------------------------------------------------------
 -- NOTIFICATIONS
@@ -131,7 +142,7 @@ drop policy if exists products_delete_seller on public.products;
 create policy products_delete_seller on public.products
   for delete using (auth.uid() = seller_id);
 
--- orders: a row is visible/updatable by the buyer OR the product's seller.
+-- orders: a row is visible by the buyer OR the product's seller.
 -- (Admins also see everything because they're matched by their seller_id on
 --  product rows during demo; for capstone-level access we keep this simple.)
 drop policy if exists orders_select_party on public.orders;
@@ -142,15 +153,188 @@ create policy orders_select_party on public.orders
   );
 
 drop policy if exists orders_insert_buyer on public.orders;
-create policy orders_insert_buyer on public.orders
-  for insert with check (auth.uid() = buyer_id);
+-- Direct inserts are intentionally disabled; orders are created through the
+-- inventory-safe RPC below so stock and notifications stay in one transaction.
 
 drop policy if exists orders_update_party on public.orders;
-create policy orders_update_party on public.orders
+drop policy if exists orders_update_seller on public.orders;
+create policy orders_update_seller on public.orders
   for update using (
-    auth.uid() = buyer_id
-    or auth.uid() in (select seller_id from public.products where id = orders.product_id)
+    auth.uid() in (select seller_id from public.products where id = orders.product_id)
   );
+
+-- Inventory-safe order creation. The app calls this RPC instead of inserting an
+-- order directly so stock cannot go below zero when multiple buyers order at once.
+create or replace function public.create_order_with_inventory(
+  p_buyer_id uuid,
+  p_product_id uuid,
+  p_payment_method text
+)
+returns table (
+  id uuid,
+  buyer_id uuid,
+  product_id uuid,
+  status text,
+  payment_method text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid := auth.uid();
+  product_seller_id uuid;
+  product_title text;
+  buyer_name text;
+  payment_label text;
+  current_stock int;
+  created_order_id uuid;
+begin
+  if actor_id is null or actor_id <> p_buyer_id then
+    raise exception 'not_authenticated';
+  end if;
+
+  if p_payment_method not in ('buy_now', 'cash_on_pickup') then
+    raise exception 'invalid_payment_method';
+  end if;
+
+  select p.seller_id, p.title, p.stock
+    into product_seller_id, product_title, current_stock
+  from public.products p
+  where p.id = p_product_id
+  for update;
+
+  if not found then
+    raise exception 'product_not_found';
+  end if;
+
+  if product_seller_id = p_buyer_id then
+    raise exception 'cannot_order_own_product';
+  end if;
+
+  if current_stock <= 0 then
+    raise exception 'out_of_stock';
+  end if;
+
+  update public.products
+  set stock = stock - 1
+  where products.id = p_product_id;
+
+  insert into public.orders (buyer_id, product_id, payment_method, status)
+  values (p_buyer_id, p_product_id, p_payment_method, 'pending')
+  returning orders.id into created_order_id;
+
+  select coalesce(pr.full_name, pr.email, 'A buyer')
+    into buyer_name
+  from public.profiles pr
+  where pr.id = p_buyer_id;
+
+  payment_label := case
+    when p_payment_method = 'buy_now' then 'Buy Now'
+    else 'Cash on Pickup'
+  end;
+
+  insert into public.notifications (user_id, message)
+  values
+    (p_buyer_id, 'Order placed for "' || product_title || '". Waiting for seller confirmation.'),
+    (product_seller_id, 'New ' || payment_label || ' order received: "' || product_title || '" from ' || coalesce(buyer_name, 'a buyer') || '.');
+
+  return query
+  select o.id, o.buyer_id, o.product_id, o.status, o.payment_method, o.created_at
+  from public.orders o
+  where o.id = created_order_id;
+end;
+$$;
+
+grant execute on function public.create_order_with_inventory(uuid, uuid, text) to authenticated;
+
+-- Inventory-safe order status updates. Stock is reserved at order creation;
+-- confirmation and completion keep the reserved stock synchronized.
+create or replace function public.update_order_status_with_inventory(
+  p_order_id uuid,
+  p_status text
+)
+returns table (
+  id uuid,
+  buyer_id uuid,
+  product_id uuid,
+  status text,
+  payment_method text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid := auth.uid();
+  existing record;
+begin
+  if actor_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if p_status not in ('pending', 'confirmed', 'completed') then
+    raise exception 'invalid_order_status';
+  end if;
+
+  select
+    o.id,
+    o.buyer_id,
+    o.product_id,
+    o.status,
+    o.payment_method,
+    o.created_at,
+    p.seller_id,
+    p.title,
+    buyer.full_name as buyer_name
+  into existing
+  from public.orders o
+  join public.products p on p.id = o.product_id
+  left join public.profiles buyer on buyer.id = o.buyer_id
+  where o.id = p_order_id
+  for update of o, p;
+
+  if not found then
+    raise exception 'order_not_found';
+  end if;
+
+  if actor_id <> existing.seller_id then
+    raise exception 'not_allowed';
+  end if;
+
+  if existing.status <> p_status then
+    if not (
+      (existing.status = 'pending' and p_status = 'confirmed')
+      or (existing.status = 'confirmed' and p_status = 'completed')
+    ) then
+      raise exception 'invalid_status_transition';
+    end if;
+
+    update public.orders
+    set status = p_status
+    where orders.id = p_order_id;
+
+    if p_status = 'confirmed' then
+      insert into public.notifications (user_id, message)
+      values (existing.buyer_id, 'Your order for "' || existing.title || '" was confirmed.');
+    elsif p_status = 'completed' then
+      insert into public.notifications (user_id, message)
+      values
+        (existing.buyer_id, 'Your order for "' || existing.title || '" was marked complete.'),
+        (existing.seller_id, 'You completed an order for "' || existing.title || '".');
+    end if;
+  end if;
+
+  return query
+  select o.id, o.buyer_id, o.product_id, o.status, o.payment_method, o.created_at
+  from public.orders o
+  where o.id = p_order_id;
+end;
+$$;
+
+grant execute on function public.update_order_status_with_inventory(uuid, text) to authenticated;
 
 -- notifications: a user only sees their own notifications.
 drop policy if exists notifications_select_self on public.notifications;

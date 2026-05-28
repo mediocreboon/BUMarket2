@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DollarSign, Star, Package, CheckCircle, AlertTriangle, LayoutDashboard, Box,
   User, Settings, LogOut, ChevronDown, Save, ShieldCheck, Bell, Menu, ShoppingCart,
@@ -14,7 +14,6 @@ import {
   listOrdersForSeller,
   listProductsBySeller,
   updateOrderStatus,
-  createNotification,
 } from '../../lib/db';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
@@ -29,7 +28,6 @@ const orderStatusColors: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
   confirmed: 'bg-blue-100 text-blue-700',
   completed: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-red-100 text-red-600',
 };
 
 export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
@@ -41,21 +39,39 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
+    const requestId = ++requestRef.current;
+    const isActive = () => mountedRef.current && requestId === requestRef.current;
+    if (!user) {
+      if (isActive()) {
+        setOrders([]);
+        setProducts([]);
+        setIsLoading(false);
+      }
+      return;
+    }
+    if (isActive()) setIsLoading(true);
     try {
       const [o, p] = await Promise.all([listOrdersForSeller(user.id), listProductsBySeller(user.id)]);
-      setOrders(o);
-      setProducts(p);
+      if (isActive()) {
+        setOrders(o);
+        setProducts(p);
+      }
     } finally {
-      setIsLoading(false);
+      if (isActive()) setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [refresh]);
 
   const pendingOrders = orders.filter((o) => o.status === 'pending');
@@ -74,12 +90,14 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
   ];
 
   const handleConfirm = async (order: DbOrder) => {
-    const ok = await updateOrderStatus(order.id, 'confirmed');
-    if (!ok) return;
-    setOrders((prev) =>
-      prev.map((o) => (o.id === order.id ? { ...o, status: 'confirmed' } : o))
-    );
-    await createNotification(order.buyer_id, `Your order for "${order.product?.title}" was confirmed.`);
+    setUpdatingOrderId(order.id);
+    try {
+      const ok = await updateOrderStatus(order.id, 'confirmed');
+      if (!ok) return;
+      await refresh();
+    } finally {
+      if (mountedRef.current) setUpdatingOrderId(null);
+    }
   };
 
   return (
@@ -302,9 +320,10 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                         {order.status === 'pending' && (
                           <button
                             onClick={() => handleConfirm(order)}
-                            className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-xl hover:bg-blue-700"
+                            disabled={updatingOrderId === order.id}
+                            className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-xl hover:bg-blue-700 disabled:opacity-60"
                           >
-                            Confirm
+                            {updatingOrderId === order.id ? 'Updating…' : 'Confirm'}
                           </button>
                         )}
                       </div>
@@ -352,7 +371,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
           </div>
         )}
 
-        {activeView === 'orders' && <MyOrders userType="seller" />}
+        {activeView === 'orders' && <MyOrders userType="seller" onOrdersChanged={refresh} />}
         {activeView === 'inventory' && <SellerInventory />}
         {activeView === 'notifications' && <NotificationsPanel />}
 
@@ -366,7 +385,8 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                   <input
                     type="text"
                     defaultValue={userName}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    disabled
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500"
                   />
                 </div>
                 <div>
@@ -374,7 +394,8 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                   <textarea
                     rows={3}
                     defaultValue="Student Entrepreneur on BUMarket."
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                    disabled
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 text-slate-500 resize-none"
                   />
                 </div>
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
@@ -383,7 +404,8 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                 </div>
                 <button
                   type="button"
-                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                  disabled
+                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm flex items-center justify-center gap-2 opacity-60 cursor-not-allowed"
                 >
                   <Save className="w-4 h-4" /> Save Changes
                 </button>

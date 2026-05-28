@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Search, SlidersHorizontal, X, ChevronDown, Star, ShieldCheck } from 'lucide-react';
+import { Search, SlidersHorizontal, X, ChevronDown, Star, ShieldCheck, RefreshCw } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductDetails } from './ProductDetails';
-import { mockProducts, categories, Product } from '../data/mockProducts';
+import { categories, Product } from '../data/mockProducts';
+import { useProducts } from '../data/useProducts';
 
 interface MarketplaceProps {
   userName: string;
@@ -20,18 +21,22 @@ const PRICE_RANGES = [
 const CONDITIONS = ['All', 'new', 'like-new', 'used', 'service'];
 
 export function Marketplace({ userName, userType }: MarketplaceProps) {
+  void userName;
+  void userType;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedPriceRange, setSelectedPriceRange] = useState(0);
   const [selectedCondition, setSelectedCondition] = useState('All');
+  const [minRating, setMinRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'popular' | 'price-asc' | 'price-desc' | 'rating' | 'newest'>('popular');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const { products, isLoading, refresh } = useProducts();
 
   const priceRange = PRICE_RANGES[selectedPriceRange];
 
-  let filtered = mockProducts.filter(p => {
+  let filtered = products.filter(p => {
     const matchSearch = !searchQuery || p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.seller.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -40,7 +45,8 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
     const matchPrice = p.price >= priceRange.min && p.price <= priceRange.max;
     const matchCond = selectedCondition === 'All' || p.condition === selectedCondition;
     const matchVerified = !verifiedOnly || p.verified;
-    return matchSearch && matchCat && matchPrice && matchCond && matchVerified;
+    const matchRating = minRating === null || p.rating >= minRating;
+    return matchSearch && matchCat && matchPrice && matchCond && matchVerified && matchRating;
   });
 
   // Sort
@@ -57,6 +63,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
     selectedCategory !== 'all',
     selectedPriceRange !== 0,
     selectedCondition !== 'All',
+    minRating !== null,
     verifiedOnly,
   ].filter(Boolean).length;
 
@@ -64,20 +71,33 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
     setSelectedCategory('all');
     setSelectedPriceRange(0);
     setSelectedCondition('All');
+    setMinRating(null);
     setVerifiedOnly(false);
   };
 
-  if (selectedProduct) {
-    return <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />;
+  const currentProduct = selectedProduct
+    ? products.find((p) => p.id === selectedProduct.id) ?? selectedProduct
+    : null;
+
+  if (currentProduct) {
+    return (
+      <ProductDetails
+        product={currentProduct}
+        products={products}
+        onBack={() => setSelectedProduct(null)}
+        onViewProduct={setSelectedProduct}
+        onInventoryChanged={refresh}
+      />
+    );
   }
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50">
       {/* Top Bar */}
       <div className="bg-white border-b border-slate-100 px-6 py-4 sticky top-0 z-20">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
-          <div className="flex-1 relative">
+          <div className="flex-1 min-w-[220px] relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -94,7 +114,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
           </div>
 
           {/* Sort */}
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
@@ -112,8 +132,9 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
           {/* Refresh */}
           <button
             onClick={refresh}
+            disabled={isLoading}
             title="Refresh"
-            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -152,10 +173,10 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
         {/* Filter Sidebar */}
         {showFilters && (
-          <div className="w-64 bg-white border-r border-slate-100 p-5 flex-shrink-0 overflow-y-auto">
+          <div className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-100 p-5 flex-shrink-0 overflow-y-auto max-h-72 md:max-h-none">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-slate-800 text-sm font-semibold">Filters</h3>
               {activeFilterCount > 0 && (
@@ -227,7 +248,13 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
               <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-3">Min. Rating</p>
               <div className="space-y-2">
                 {[4, 3, 2].map((r) => (
-                  <button key={r} className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-800 transition-colors">
+                  <button
+                    key={r}
+                    onClick={() => setMinRating(minRating === r ? null : r)}
+                    className={`flex items-center gap-1.5 text-sm transition-colors ${
+                      minRating === r ? 'text-blue-600 font-medium' : 'text-slate-600 hover:text-slate-800'
+                    }`}
+                  >
                     <div className="flex items-center gap-0.5">
                       {[1,2,3,4,5].map(s => (
                         <Star key={s} className={`w-3 h-3 ${s <= r ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
@@ -242,7 +269,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
         )}
 
         {/* Product Grid */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 min-w-0">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-slate-500">
               {filtered.length} {filtered.length === 1 ? 'product' : 'products'} found
@@ -253,7 +280,12 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
           {filtered.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {filtered.map(product => (
-                <ProductCard key={product.id} product={product} onViewDetails={setSelectedProduct} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onViewDetails={setSelectedProduct}
+                  onInventoryChanged={refresh}
+                />
               ))}
             </div>
           ) : (

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Search, ArrowRight, ShieldCheck, Zap, Star, TrendingUp, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductDetails } from './ProductDetails';
-import { mockProducts, categories, mockSellers, Product } from '../data/mockProducts';
+import { categories, mockSellers, Product } from '../data/mockProducts';
+import { useProducts } from '../data/useProducts';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 const HERO_BG = 'https://scontent.fmnl3-2.fna.fbcdn.net/v/t39.30808-6/506598061_1193219059517264_1907555190436737450_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=100&ccb=1-7&_nc_sid=7b2446&_nc_eui2=AeGfuZ8Vs6Jp2NtRJF-NeRAYPXJehY0gZuk9cl6FjSBm6SD_kvoNY3RIPcDgJs-jt-dOY_LlRb3QrYcmLqYRlGOX&_nc_ohc=vssUgdR6-zwQ7kNvwFbV0kV&_nc_oc=AdrHrawBcb9OfhGPdcTTmTxtP12nkCmjsFmff546e7O_KSa9Hmry-lkS5nJrX1dzMYU&_nc_zt=23&_nc_ht=scontent.fmnl3-2.fna&_nc_gid=XRvzr8K03dkWXoYz8PWbEA&_nc_ss=7b2a8&oh=00_Af5RdMgdECnPeFJ7rUvZLVd-F4Ak3HJGiMGappVF1KJ3mg&oe=6A089670';
@@ -16,15 +17,17 @@ const ANNOUNCEMENTS = [
 interface BuyerHomeProps {
   userName: string;
   onNavigateToMarketplace: () => void;
+  onNavigateToNotifications?: () => void;
 }
 
-export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps) {
+export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotifications }: BuyerHomeProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [announcementIdx, setAnnouncementIdx] = useState(0);
+  const { products, refresh } = useProducts();
 
-  const featuredProducts = mockProducts.filter(p => p.isFeatured);
-  const popularProducts = mockProducts.filter(p => p.isPopular);
+  const featuredProducts = products.filter(p => p.isFeatured).slice(0, 4);
+  const popularProducts = products.filter(p => p.isPopular).slice(0, 4);
   const announcement = ANNOUNCEMENTS[announcementIdx];
 
   const handleSearch = (e: React.FormEvent) => {
@@ -32,16 +35,28 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
     if (searchQuery.trim()) onNavigateToMarketplace();
   };
 
-  if (selectedProduct) {
-    return <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />;
+  const currentProduct = selectedProduct
+    ? products.find((p) => p.id === selectedProduct.id) ?? selectedProduct
+    : null;
+
+  if (currentProduct) {
+    return (
+      <ProductDetails
+        product={currentProduct}
+        products={products}
+        onBack={() => setSelectedProduct(null)}
+        onViewProduct={setSelectedProduct}
+        onInventoryChanged={refresh}
+      />
+    );
   }
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50">
       {/* Top Bar */}
-      <div className="bg-white border-b border-slate-100 px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+      <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-2">
         <p className="text-sm text-slate-500 hidden md:block">Monday, May 11, 2026</p>
-        <form onSubmit={handleSearch} className="flex-1 max-w-md mx-4 relative">
+        <form onSubmit={handleSearch} className="flex-1 max-w-md md:mx-4 relative min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -51,13 +66,17 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
             className="w-full pl-9 pr-4 py-2 text-sm bg-slate-100 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 focus:bg-white transition-all"
           />
         </form>
-        <button className="relative p-2 hover:bg-slate-100 rounded-full transition-colors">
+        <button
+          onClick={onNavigateToNotifications}
+          title="Notifications"
+          className="relative p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0"
+        >
           <Bell className="w-5 h-5 text-slate-600" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
         </button>
       </div>
 
-      <div className="px-6 py-6 max-w-7xl mx-auto space-y-8">
+      <div className="px-4 md:px-6 py-6 max-w-7xl mx-auto space-y-8">
         {/* Hero Banner */}
         <div className="relative rounded-3xl overflow-hidden h-52 md:h-64 shadow-xl">
           <ImageWithFallback src={HERO_BG} alt="BUMarket" className="w-full h-full object-cover" />
@@ -135,8 +154,13 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {featuredProducts.slice(0, 4).map((product) => (
-              <ProductCard key={product.id} product={product} onViewDetails={setSelectedProduct} />
+            {featuredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onViewDetails={setSelectedProduct}
+                onInventoryChanged={refresh}
+              />
             ))}
           </div>
         </div>
@@ -154,7 +178,12 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {popularProducts.map((product) => (
-              <ProductCard key={product.id} product={product} onViewDetails={setSelectedProduct} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                onViewDetails={setSelectedProduct}
+                onInventoryChanged={refresh}
+              />
             ))}
           </div>
         </div>
@@ -169,7 +198,7 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {mockSellers.map((seller) => (
-              <div key={seller.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all text-center group cursor-pointer">
+              <div key={seller.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all text-center group">
                 <div className="relative inline-block mb-3">
                   <ImageWithFallback
                     src={seller.avatar}

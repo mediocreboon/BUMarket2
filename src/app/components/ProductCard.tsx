@@ -7,12 +7,14 @@ import { BuyNowModal } from './BuyNowModal';
 interface ProductCardProps {
   product: Product;
   onViewDetails?: (product: Product) => void;
+  onInventoryChanged?: () => Promise<void> | void;
   compact?: boolean;
 }
 
-export function ProductCard({ product, onViewDetails, compact = false }: ProductCardProps) {
+export function ProductCard({ product, onViewDetails, onInventoryChanged, compact = false }: ProductCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showBuyModal, setShowBuyModal] = useState(false);
+  const isSoldOut = product.stock <= 0;
 
   const conditionColor = {
     new: 'bg-emerald-100 text-emerald-700',
@@ -64,6 +66,11 @@ export function ProductCard({ product, onViewDetails, compact = false }: Product
               Only {product.stock} left!
             </div>
           )}
+          {isSoldOut && (
+            <div className="absolute bottom-2 left-2 bg-slate-900/85 text-white text-xs px-2 py-0.5 rounded-full">
+              Sold out
+            </div>
+          )}
         </div>
 
         <div className={`p-3 ${compact ? '' : 'p-4'}`}>
@@ -107,18 +114,24 @@ export function ProductCard({ product, onViewDetails, compact = false }: Product
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (isSoldOut) return;
                 setShowBuyModal(true);
               }}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs hover:bg-blue-700 transition-colors font-medium"
+              disabled={isSoldOut}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Buy Now
+              {isSoldOut ? 'Sold Out' : 'Buy Now'}
             </button>
           </div>
         </div>
       </div>
 
       {showBuyModal && (
-        <BuyNowModal product={product} onClose={() => setShowBuyModal(false)} />
+        <BuyNowModal
+          product={product}
+          onClose={() => setShowBuyModal(false)}
+          onOrderPlaced={onInventoryChanged}
+        />
       )}
     </>
   );
