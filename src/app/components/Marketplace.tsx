@@ -109,6 +109,15 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
 
+          {/* Refresh */}
+          <button
+            onClick={refresh}
+            title="Refresh"
+            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}

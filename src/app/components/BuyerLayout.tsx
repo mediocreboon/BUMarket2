@@ -142,10 +142,11 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
         {activeView === 'marketplace' && <Marketplace userName={userName} userType="buyer" />}
         {activeView === 'orders' && <MyOrders userType="buyer" />}
         {activeView === 'favorites' && <Favorites />}
+        {activeView === 'notifications' && <NotificationsPanel />}
         {activeView === 'profile' && <MyProfile userName={userName} userType="buyer" />}
         {activeView === 'wallet' && <EWallet />}
       </div>
-      <AIChatbot />
+      <AIChatbot context="buyer" page={activeView} />
     </div>
   );
 }

@@ -1,133 +1,210 @@
-# BUMarket - Student Entrepreneur Marketplace
+# BUMarket — Capstone Demo Marketplace
 
-A web-based marketplace platform for student entrepreneurs, built with React, TypeScript, Tailwind CSS, and Supabase.
+A presentation-ready, student-entrepreneur marketplace built for academic
+evaluation. Designed for **stability**, **smooth demo flow**, and **working
+CRUD** — not for production.
 
-## Features
+- **Buyer**, **Seller**, and a hidden **Admin** role
+- Authentication, marketplace browsing, product CRUD, order workflow
+- Database-backed notifications + a context-aware FAQ chatbot
+- Built with **React + TypeScript + Tailwind CSS + Supabase**
 
-- **Dual User Roles**: Separate dashboards for Student Buyers and Student Sellers
-- **Authentication**: Secure login and registration with Supabase Auth
-- **Product Marketplace**: Browse, search, and filter products and services
-- **Order Management**: Track orders and reservations
-- **E-Wallet**: Digital wallet functionality for transactions
-- **Favorites**: Save and manage favorite products
-- **Seller Dashboard**: Comprehensive tools for managing products, orders, and analytics
+---
 
-## Tech Stack
+## 1. Quick Start (Local Demo)
 
-- **Frontend**: React 18 + TypeScript
-- **Styling**: Tailwind CSS v4
-- **Backend**: Supabase (Authentication, Database, Edge Functions)
-- **Build Tool**: Vite
-- **Package Manager**: pnpm
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v18 or higher)
-- pnpm (recommended) or npm
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone <your-repo-url>
-cd BUMarket
-```
-
-2. Install dependencies:
 ```bash
 pnpm install
-```
-
-3. Set up environment variables:
-Create a `.env` file in the root directory:
-```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-4. Run the development server:
-```bash
 pnpm dev
 ```
 
-## Project Structure
+Then open the URL printed by Vite (usually `http://localhost:5173`).
+
+> The Supabase URL & anon key default to a demo project. If you want to use
+> your own Supabase project, see **Section 3**.
+
+### Demo accounts (password `bumarket123`)
+
+| Role      | Email                  |
+| --------- | ---------------------- |
+| Buyer     | `buyer@bumarket.com`   |
+| Seller    | `seller@bumarket.com`  |
+| Admin     | `admin@bumarket.com`   |
+
+The admin role is **not** exposed in the role selector. Sign in with the
+admin email to access the admin dashboard.
+
+---
+
+## 2. Production Build
+
+```bash
+pnpm build
+```
+
+Outputs to `dist/`. Deploy to Vercel, Netlify, or any static host. There is no
+custom backend — Supabase handles auth, database, and storage.
+
+---
+
+## 3. Supabase Setup
+
+### Step 1 — Create a project
+
+Go to [supabase.com](https://supabase.com) and create a new project. Once it
+finishes provisioning, grab the **Project URL** and **anon public key** from
+*Settings → API*.
+
+### Step 2 — Provide credentials to the app
+
+Copy `.env.example` to `.env` and fill in:
+
+```env
+VITE_SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-public-key
+```
+
+> If you leave `.env` empty, the app falls back to the shared demo project
+> bundled in `src/lib/supabase.ts`.
+
+### Step 3 — Apply the database schema
+
+Open *SQL Editor* in the Supabase dashboard and paste the contents of
+[`supabase/schema.sql`](./supabase/schema.sql), then click **Run**.
+
+The script creates:
+
+- `profiles`, `products`, `orders`, `notifications` tables
+- Simplified Row Level Security policies (buyers can buy, sellers can manage
+  their own products, everyone can read profiles + products)
+- A trigger that auto-creates a `profiles` row whenever a new auth user is
+  created (so registration "just works")
+- A public **`products`** storage bucket for seller image uploads
+- Demo seed products (linked to the seller demo account)
+
+### Step 4 — Create demo accounts
+
+In *Authentication → Users* click **Add user** and create:
+
+| Email                  | Password      | Auto-confirm |
+| ---------------------- | ------------- | ------------ |
+| `buyer@bumarket.com`   | `bumarket123` | ✅ Yes       |
+| `seller@bumarket.com`  | `bumarket123` | ✅ Yes       |
+| `admin@bumarket.com`   | `bumarket123` | ✅ Yes       |
+
+After creating the accounts, re-run the `DEMO PROFILE BACKFILL` block in
+`supabase/schema.sql` (it's idempotent) so the role/full_name fields are
+correct. The script also seeds 4 demo products attached to the seller.
+
+That's it — the app is now wired to your Supabase project.
+
+---
+
+## 4. Features Overview
+
+### Authentication
+- Single login page (admin role hidden from the role selector)
+- Public buyer / seller registration with simplified flow (no OTP / 2FA)
+- Session persistence via Supabase Auth
+- Role detected from `profiles` table, automatic dashboard routing
+
+### Marketplace
+- Mixed feed of real seller products + curated mock products
+- Search, category filters, price/condition/rating filters
+- Featured + trending sections on the buyer home
+
+### Product Management (Seller)
+- Full CRUD via Supabase (`products` table)
+- Image upload to Supabase Storage (or paste an image URL)
+- Listings appear immediately — no admin approval
+
+### Orders
+- **Buy Now** or **Cash on Pickup** payment methods
+- Order statuses: `pending` → `confirmed` → `completed`
+- Sellers manually confirm orders from their dashboard
+- Buyers can mark a confirmed order as received
+
+### Notifications
+- Database-backed (`notifications` table) — no realtime, no push
+- Order placed / confirmed / completed events automatically generate
+  notifications for both parties
+- Click a notification to mark it read
+
+### Chatbot
+- Keyword-based FAQ chatbot (BUBot)
+- Context-aware tips for the page you're currently on
+- No external AI calls — fully local
+
+### Admin Dashboard
+- View users, products, and orders
+- Visual-only "verified" badge — admins do not block user access
+
+### Future Enhancements (labeled in the UI)
+- Real-time messaging, push notifications, real payment gateway, refunds,
+  advanced analytics, recommendation engine, and the E-Wallet (top-up,
+  transfers, balances) are all marked **Coming Soon / Future Enhancement**.
+
+---
+
+## 5. Project Structure
 
 ```
 BUMarket/
 ├── src/
 │   ├── app/
-│   │   ├── App.tsx                 # Main application component
-│   │   ├── components/             # React components
+│   │   ├── App.tsx                  # Root component + auth-aware routing
+│   │   ├── context/AuthContext.tsx  # useAuth() hook
+│   │   ├── components/              # All UI components
 │   │   │   ├── LoginPage.tsx
-│   │   │   ├── SignUpPageBuyer.tsx
-│   │   │   ├── SignUpPageSeller.tsx
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── Marketplace.tsx
-│   │   │   ├── SellerDashboard.tsx
+│   │   │   ├── SignUpPage.tsx
+│   │   │   ├── BuyerLayout.tsx + BuyerHome.tsx
+│   │   │   ├── SellerDashboard.tsx + SellerInventory.tsx
+│   │   │   ├── AdminDashboard.tsx
+│   │   │   ├── Marketplace.tsx + ProductCard.tsx + ProductDetails.tsx
+│   │   │   ├── MyOrders.tsx + NotificationsPanel.tsx
+│   │   │   ├── BuyNowModal.tsx
+│   │   │   ├── AIChatbot.tsx
+│   │   │   ├── EWallet.tsx          # "Coming Soon" placeholder
 │   │   │   └── ...
 │   │   └── data/
-│   │       └── mockProducts.ts     # Mock product data
+│   │       ├── mockProducts.ts      # Static mock catalog for demo polish
+│   │       ├── productFeed.ts       # DB ↔ UI product adapter
+│   │       └── useProducts.ts       # Hook merging DB + mock products
 │   ├── lib/
-│   │   └── supabase.ts            # Supabase client configuration
-│   └── styles/                     # Global styles
+│   │   ├── supabase.ts              # Env-driven Supabase client
+│   │   └── db.ts                    # Data layer (CRUD helpers)
+│   ├── pages/AuthCallback.tsx
+│   └── styles/
 ├── supabase/
-│   └── functions/                  # Supabase Edge Functions
+│   └── schema.sql                   # ⭐ Paste me into the Supabase SQL editor
+├── .env.example
 └── package.json
-
 ```
 
-## Supabase Setup
+---
 
-### Database Tables
+## 6. Tech Stack
 
-1. **profiles** table:
-```sql
-CREATE TABLE profiles (
-  id UUID REFERENCES auth.users PRIMARY KEY,
-  full_name TEXT,
-  student_id TEXT,
-  role TEXT CHECK (role IN ('buyer', 'seller')),
-  department TEXT,
-  phone TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS v4
+- **Backend / Data**: Supabase (Auth, Postgres, Storage)
+- **Icons**: lucide-react
+- **Charts**: recharts (admin overview only)
 
-### Edge Functions
+---
 
-Deploy the signup Edge Functions:
-```bash
-supabase functions deploy signup-buyer
-supabase functions deploy signup-seller
-```
+## 7. Deployment Notes
 
-## Design System
+- The app is a pure static SPA — drop the `dist/` folder onto Vercel,
+  Netlify, GitHub Pages, etc.
+- Configure the host with the same `VITE_SUPABASE_URL` /
+  `VITE_SUPABASE_ANON_KEY` environment variables as your local `.env`.
+- In Supabase, under *Authentication → URL Configuration*, add your
+  deployed origin (e.g. `https://bumarket.vercel.app`) to the allowed list
+  and to the redirect URLs (`/auth/callback`).
 
-- **Primary Color**: Blue (#3B82F6)
-- **Typography**: Archivo Black (headers), Archivo (body)
-- **Design Style**: Modern, Gen Z-friendly with card-based layouts
-- **Responsive**: Mobile and desktop optimized
+---
 
-## Available Departments
+## 8. License
 
-- Computer Studies
-- Engineering
-- Teacher Education
-- Technology
-- Nursing
-
-## Development Methodology
-
-Built using:
-- **Input-Process-Output (IPO) Model**: Clear data flow architecture
-- **Rapid Application Development (RAD)**: Iterative prototype-driven development
-
-## License
-
-This project is developed for educational purposes.
-
-## Contributors
-
-Built for university student entrepreneurs.
+Built for academic evaluation. Not intended for production use.

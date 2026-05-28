@@ -314,40 +314,7 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
         )}
       </div>
 
-      {/* Reserve Modal */}
-      {showReserveModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowReserveModal(false)}>
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-slate-900 mb-1">Confirm Reservation</h3>
-            <p className="text-slate-500 text-sm mb-4">You're about to reserve this item.</p>
-
-            <div className="flex gap-3 mb-5">
-              <ImageWithFallback src={product.image} alt={product.title} className="w-16 h-16 rounded-xl object-cover" />
-              <div>
-                <p className="text-slate-800 text-sm font-medium">{product.title}</p>
-                <p className="text-blue-600 font-bold">₱{product.price.toLocaleString()}</p>
-                <p className="text-slate-500 text-xs">Seller: {product.seller}</p>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-5">
-              <p className="text-xs text-blue-700">
-                📍 Meet-up at: <strong>{product.location}</strong><br />
-                The seller will contact you to confirm the schedule.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setShowReserveModal(false)} className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm">
-                Cancel
-              </button>
-              <button onClick={handleReserveConfirm} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium">
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showBuyModal && <BuyNowModal product={product} onClose={() => setShowBuyModal(false)} />}
     </div>
   );
 }
