@@ -35,8 +35,8 @@ type SessionUser = { id: string; email?: string | null; user_metadata?: Record<s
 
 function getBootstrapProfile(sessionUser: SessionUser) {
   const meta = sessionUser.user_metadata || {};
-  const requestedRole = meta.role === 'seller' ? 'seller' : 'buyer';
-  const role =
+  const requestedRole: AuthUser['role'] = meta.role === 'seller' ? 'seller' : 'buyer';
+  const role: AuthUser['role'] =
     sessionUser.email && sessionUser.email.toLowerCase().startsWith('admin@')
       ? 'admin'
       : requestedRole;
