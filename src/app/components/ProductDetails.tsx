@@ -3,6 +3,7 @@ import { ArrowLeft, Star, ShieldCheck, MapPin, MessageCircle, Heart, Share2, Tag
 import { Product, mockProducts, mockReviews } from '../data/mockProducts';
 import { ProductCard } from './ProductCard';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { BuyNowModal } from './BuyNowModal';
 
 interface ProductDetailsProps {
   product: Product;
@@ -13,17 +14,11 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
   const [currentImg, setCurrentImg] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'reviews' | 'seller'>('details');
-  const [showReserveModal, setShowReserveModal] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
+  const [showBuyModal, setShowBuyModal] = useState(false);
 
   const reviews = mockReviews.filter(r => r.productId === product.id);
   const related = mockProducts.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
   const images = product.images?.length ? product.images : [product.image];
-
-  const handleReserveConfirm = () => {
-    setShowReserveModal(false);
-    alert(`✅ Reservation confirmed for "${product.title}"!\nThe seller will contact you to arrange a campus meet-up.`);
-  };
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50">
@@ -165,7 +160,7 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowReserveModal(true)}
+                onClick={() => setShowBuyModal(true)}
                 disabled={product.stock === 0}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
@@ -287,7 +282,7 @@ export function ProductDetails({ product, onBack }: ProductDetailsProps) {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setChatMessage('')}
+                    onClick={() => alert('Seller messaging is coming soon. For now, place an order so the seller can coordinate with you.')}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm"
                   >
                     <MessageCircle className="w-4 h-4" /> Message Seller

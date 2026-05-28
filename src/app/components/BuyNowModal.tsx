@@ -4,6 +4,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Product } from '../data/mockProducts';
 import { useAuth } from '../context/AuthContext';
 import { createOrder, createNotification, DbProduct } from '../../lib/db';
+import { dbProductToUiProduct } from '../data/productFeed';
 
 interface BuyNowModalProps {
   product: Product;
@@ -207,7 +208,5 @@ export function BuyNowModal({ product, onClose }: BuyNowModalProps) {
 
 // Adapter so DB products can be passed via the same modal directly when needed.
 export function dbProductForModal(p: DbProduct): Product {
-  void p;
-  // Not currently used — placeholder for future expansion.
-  return {} as any;
+  return dbProductToUiProduct(p);
 }

@@ -60,6 +60,8 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
 
   const pendingOrders = orders.filter((o) => o.status === 'pending');
   const completedOrders = orders.filter((o) => o.status === 'completed');
+  const displayName = userName.trim() || 'Seller';
+  const initial = displayName.charAt(0).toUpperCase();
   const totalRevenue = completedOrders.reduce(
     (sum, o) => sum + Number(o.product?.price ?? 0),
     0
@@ -110,10 +112,10 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
           <div className="px-4 py-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0">
-                {userName.charAt(0).toUpperCase()}
+                {initial}
               </div>
               <div>
-                <p className="text-slate-800 text-sm font-medium truncate">{userName}</p>
+                <p className="text-slate-800 text-sm font-medium truncate">{displayName}</p>
                 <div className="flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-emerald-500" />
                   <p className="text-xs text-emerald-500">
@@ -186,7 +188,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                 className="flex items-center gap-2 hover:bg-slate-50 rounded-xl p-1.5 transition-colors"
               >
                 <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                  {userName.charAt(0).toUpperCase()}
+                  {initial}
                 </div>
                 <ChevronDown className="w-4 h-4 text-slate-500" />
               </button>
@@ -216,7 +218,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
         {activeView === 'dashboard' && (
           <div className="flex-1 overflow-auto p-6">
             <div className="mb-6">
-              <h2 className="text-slate-900">Welcome back, {userName}!</h2>
+              <h2 className="text-slate-900">Welcome back, {displayName}!</h2>
               <p className="text-slate-500 text-sm">Here&apos;s a quick look at your shop.</p>
             </div>
 
@@ -365,7 +367,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                   <label className="block text-sm text-slate-600 mb-1.5">Display Name</label>
                   <input
                     type="text"
-                    defaultValue={userName}
+                    defaultValue={displayName}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                   />
                 </div>
@@ -393,7 +395,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
         )}
       </div>
 
-      <AIChatbot context="seller" />
+      <AIChatbot context="seller" page={activeView} />
     </div>
   );
 }

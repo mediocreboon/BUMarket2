@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Search, ArrowRight, ShieldCheck, Zap, Star, TrendingUp, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductDetails } from './ProductDetails';
@@ -16,9 +16,10 @@ const ANNOUNCEMENTS = [
 interface BuyerHomeProps {
   userName: string;
   onNavigateToMarketplace: () => void;
+  onOpenNotifications: () => void;
 }
 
-export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps) {
+export function BuyerHome({ userName, onNavigateToMarketplace, onOpenNotifications }: BuyerHomeProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [announcementIdx, setAnnouncementIdx] = useState(0);
@@ -27,7 +28,7 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
   const popularProducts = mockProducts.filter(p => p.isPopular);
   const announcement = ANNOUNCEMENTS[announcementIdx];
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) onNavigateToMarketplace();
   };
@@ -51,7 +52,11 @@ export function BuyerHome({ userName, onNavigateToMarketplace }: BuyerHomeProps)
             className="w-full pl-9 pr-4 py-2 text-sm bg-slate-100 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 focus:bg-white transition-all"
           />
         </form>
-        <button className="relative p-2 hover:bg-slate-100 rounded-full transition-colors">
+        <button
+          onClick={onOpenNotifications}
+          className="relative p-2 hover:bg-slate-100 rounded-full transition-colors"
+          title="Open notifications"
+        >
           <Bell className="w-5 h-5 text-slate-600" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
         </button>

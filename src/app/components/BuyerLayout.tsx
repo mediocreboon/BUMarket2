@@ -135,7 +135,7 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
       <div className="flex-1 flex flex-col min-w-0">
         {activeView === 'home' && (
           <BuyerHome
-            userName={userName}
+            userName={displayName}
             onNavigateToMarketplace={() => setActiveView('marketplace')}
           />
         )}

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Search, SlidersHorizontal, X, ChevronDown, Star, ShieldCheck } from 'lucide-react';
+import { Search, SlidersHorizontal, X, ChevronDown, Star, ShieldCheck, RefreshCw } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductDetails } from './ProductDetails';
-import { mockProducts, categories, Product } from '../data/mockProducts';
+import { categories, Product } from '../data/mockProducts';
+import { useProducts } from '../data/useProducts';
 
 interface MarketplaceProps {
   userName: string;
@@ -28,10 +29,11 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const { products, isLoading, refresh } = useProducts();
 
   const priceRange = PRICE_RANGES[selectedPriceRange];
 
-  let filtered = mockProducts.filter(p => {
+  let filtered = products.filter(p => {
     const matchSearch = !searchQuery || p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.seller.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -243,14 +245,23 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
 
         {/* Product Grid */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-3">
             <p className="text-sm text-slate-500">
               {filtered.length} {filtered.length === 1 ? 'product' : 'products'} found
               {searchQuery && <span> for "<strong className="text-slate-700">{searchQuery}</strong>"</span>}
             </p>
+            <p className="text-xs text-slate-400 hidden sm:block">
+              {userType === 'seller' ? `Seller view for ${userName}` : 'Live marketplace feed'}
+            </p>
           </div>
 
-          {filtered.length > 0 ? (
+          {isLoading && filtered.length === 0 ? (
+            <div className="text-center py-20 text-slate-400">
+              <RefreshCw className="w-12 h-12 mx-auto mb-3 opacity-30 animate-spin" />
+              <p className="mb-2">Loading products…</p>
+              <p className="text-sm">Fetching the latest marketplace listings</p>
+            </div>
+          ) : filtered.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {filtered.map(product => (
                 <ProductCard key={product.id} product={product} onViewDetails={setSelectedProduct} />

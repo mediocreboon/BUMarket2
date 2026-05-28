@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { X, Send, Bot, Sparkles, ChevronDown } from 'lucide-react';
 
 interface Message {
@@ -25,9 +25,41 @@ const BOT_RESPONSES: Record<string, string> = {
   default: "Hi! I'm BUBot, your BUMarket assistant! 🤖✨\n\nI can help you with:\n• Placing and tracking orders\n• Seller registration & setup\n• Payment and meet-up info\n• Finding products\n• General marketplace guidance\n\nWhat would you like to know? 😊",
 };
 
+type ChatbotContext = 'buyer' | 'seller' | 'admin';
+
+interface AIChatbotProps {
+  context?: ChatbotContext;
+  page?: string;
+}
+
+const CONTEXT_HINTS: Record<string, string> = {
+  home: 'Tip: browse featured products or jump into the marketplace to search the full catalogue.',
+  marketplace: 'Tip: use filters for category, condition, price, and verified sellers to narrow your search.',
+  orders: 'Tip: check My Orders for reservation status and seller confirmations.',
+  favorites: 'Tip: save products you want to revisit later.',
+  profile: 'Tip: keep your profile details accurate so sellers can coordinate with you.',
+  wallet: 'Tip: online wallet payments are being prepared; cash on pickup is available now.',
+  dashboard: 'Tip: the seller dashboard summarizes orders, listings, and quick actions.',
+  inventory: 'Tip: keep product stock, price, and images current to avoid buyer confusion.',
+  notifications: 'Tip: notifications keep both buyers and sellers aligned on order updates.',
+  settings: 'Tip: profile settings help buyers recognize your shop.',
+};
+
+function getInitialMessage(context: ChatbotContext, page?: string) {
+  const greeting =
+    context === 'seller'
+      ? "Hi! I'm **BUBot** 👋 — Need help managing products, orders, or notifications?"
+      : context === 'admin'
+        ? "Hi admin! I'm **BUBot**. I can help explain the marketplace flows."
+        : "Hi! I'm **BUBot** 👋 — your BUMarket assistant! I can help you with orders, seller info, payments, and more.";
+
+  const pageHint = page && CONTEXT_HINTS[page] ? `\n\n${CONTEXT_HINTS[page]}` : '';
+  return greeting + pageHint;
+}
+
 function getBotResponse(input: string): string {
   const lower = input.toLowerCase().trim();
-  for (const key of Object.keys(BOT_RESPONSES)) {
+  for (const key of Object.keys(BOT_RESPONSES).filter((key) => key !== 'default')) {
     if (lower.includes(key) || key.includes(lower)) {
       return BOT_RESPONSES[key];
     }
@@ -57,24 +89,15 @@ function formatMessage(text: string) {
   });
 }
 
-export function AIChatbot() {
+export function AIChatbot({ context = 'buyer', page }: AIChatbotProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
-  const greeting =
-    context === 'seller'
-      ? "Hi! I'm **BUBot** 👋 — Need help managing products, orders, or notifications?"
-      : context === 'admin'
-        ? "Hi admin! I'm **BUBot**. I can help explain the marketplace flows."
-        : "Hi! I'm **BUBot** 👋 — your BUMarket assistant! I can help you with orders, seller info, payments, and more.";
-
-  const pageHint = page && CONTEXT_HINTS[page] ? `\n\n${CONTEXT_HINTS[page]}` : '';
-
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '0',
       role: 'bot',
-      text: greeting + pageHint,
+      text: getInitialMessage(context, page),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -86,6 +109,13 @@ export function AIChatbot() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isOpen]);
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length !== 1 || prev[0].id !== '0') return prev;
+      return [{ ...prev[0], text: getInitialMessage(context, page) }];
+    });
+  }, [context, page]);
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
@@ -108,7 +138,7 @@ export function AIChatbot() {
     }, 900 + Math.random() * 600);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     sendMessage(input);
   };
