@@ -23,10 +23,17 @@ export function NotificationsPanel() {
   const { user } = useAuth();
   const [items, setItems] = useState<DbNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setItems([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
+    setError('');
     try {
       const rows = await listNotifications(user.id);
       setItems(rows);
@@ -41,14 +48,34 @@ export function NotificationsPanel() {
 
   const handleMarkRead = async (n: DbNotification) => {
     if (n.is_read) return;
-    await markNotificationRead(n.id);
-    setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+    setUpdatingId(n.id);
+    setError('');
+    try {
+      const ok = await markNotificationRead(n.id);
+      if (!ok) {
+        setError('Unable to mark this notification as read.');
+        return;
+      }
+      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const handleMarkAll = async () => {
     if (!user) return;
-    await markAllNotificationsRead(user.id);
-    setItems((prev) => prev.map((x) => ({ ...x, is_read: true })));
+    setUpdatingId('all');
+    setError('');
+    try {
+      const ok = await markAllNotificationsRead(user.id);
+      if (!ok) {
+        setError('Unable to mark notifications as read.');
+        return;
+      }
+      setItems((prev) => prev.map((x) => ({ ...x, is_read: true })));
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const unreadCount = items.filter((i) => !i.is_read).length;
@@ -68,6 +95,7 @@ export function NotificationsPanel() {
           <div className="flex gap-2">
             <button
               onClick={refresh}
+              disabled={isLoading}
               className="px-3 py-2 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-2"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -76,14 +104,21 @@ export function NotificationsPanel() {
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAll}
+                disabled={updatingId === 'all'}
                 className="px-3 py-2 text-sm rounded-xl bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
               >
                 <CheckCheck className="w-4 h-4" />
-                Mark all read
+                {updatingId === 'all' ? 'Updating…' : 'Mark all read'}
               </button>
             )}
           </div>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-xl mb-4">
+            {error}
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           {isLoading && items.length === 0 ? (
@@ -124,7 +159,9 @@ export function NotificationsPanel() {
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">{formatTime(n.created_at)}</p>
                   </div>
-                  {!n.is_read && (
+                  {updatingId === n.id ? (
+                    <RefreshCw className="w-3 h-3 text-blue-500 animate-spin mt-1.5 flex-shrink-0" />
+                  ) : !n.is_read && (
                     <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
                   )}
                 </li>

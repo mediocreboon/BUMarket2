@@ -7,19 +7,21 @@ import { Favorites } from './Favorites';
 import { MyProfile } from './MyProfile';
 import { EWallet } from './EWallet';
 import { AIChatbot } from './AIChatbot';
+import { NotificationsPanel } from './NotificationsPanel';
 
 interface BuyerLayoutProps {
   userName: string;
   onLogout: () => void;
 }
 
-type BuyerView = 'home' | 'marketplace' | 'orders' | 'favorites' | 'profile' | 'wallet';
+type BuyerView = 'home' | 'marketplace' | 'orders' | 'favorites' | 'notifications' | 'profile' | 'wallet';
 
 const navItems = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'marketplace', label: 'Marketplace', icon: Store },
   { id: 'orders', label: 'My Orders', icon: Package },
   { id: 'favorites', label: 'Favorites', icon: Heart },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
 ];
 
 const accountItems = [

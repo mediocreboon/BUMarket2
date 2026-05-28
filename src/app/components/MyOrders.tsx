@@ -2,23 +2,23 @@ import { useCallback, useEffect, useState } from 'react';
 import { Package, Clock, CheckCircle, MessageCircle, Search, RefreshCw } from 'lucide-react';
 import {
   DbOrder,
+  OrderStatus,
   listOrdersForBuyer,
   listOrdersForSeller,
   updateOrderStatus,
-  createNotification,
 } from '../../lib/db';
 import { useAuth } from '../context/AuthContext';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface MyOrdersProps {
   userType: 'buyer' | 'seller';
+  onOrdersChanged?: () => Promise<void> | void;
 }
 
 const statusConfig = {
   pending: { icon: Clock, color: 'bg-amber-100 text-amber-700', label: 'Pending' },
   confirmed: { icon: Package, color: 'bg-blue-100 text-blue-700', label: 'Confirmed' },
   completed: { icon: CheckCircle, color: 'bg-emerald-100 text-emerald-700', label: 'Completed' },
-  cancelled: { icon: Clock, color: 'bg-red-100 text-red-600', label: 'Cancelled' },
 } as const;
 
 type StatusFilter = 'all' | keyof typeof statusConfig;
@@ -26,16 +26,23 @@ type StatusFilter = 'all' | keyof typeof statusConfig;
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-export function MyOrders({ userType }: MyOrdersProps) {
+export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
   const { user } = useAuth();
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setOrders([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
+    setError('');
     try {
       const rows =
         userType === 'buyer' ? await listOrdersForBuyer(user.id) : await listOrdersForSeller(user.id);
@@ -49,20 +56,21 @@ export function MyOrders({ userType }: MyOrdersProps) {
     refresh();
   }, [refresh]);
 
-  const handleStatusChange = async (order: DbOrder, next: DbOrder['status']) => {
-    const ok = await updateOrderStatus(order.id, next);
-    if (!ok) return;
-    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: next } : o)));
-    if (user) {
-      const product = order.product?.title || 'your order';
-      if (next === 'confirmed') {
-        await createNotification(order.buyer_id, `Your order for "${product}" was confirmed.`);
-      } else if (next === 'completed') {
-        await createNotification(order.buyer_id, `Your order for "${product}" was marked complete.`);
-        if (order.product?.seller_id) {
-          await createNotification(order.product.seller_id, `You completed an order for "${product}".`);
-        }
+  const handleStatusChange = async (order: DbOrder, next: OrderStatus) => {
+    if (userType !== 'seller') return;
+
+    setUpdatingId(order.id);
+    setError('');
+    try {
+      const ok = await updateOrderStatus(order.id, next);
+      if (!ok) {
+        setError('Unable to update this order. Please refresh and try again.');
+        return;
       }
+      await refresh();
+      await Promise.resolve(onOrdersChanged?.());
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -125,6 +133,12 @@ export function MyOrders({ userType }: MyOrdersProps) {
         />
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-xl mb-4">
+          {error}
+        </div>
+      )}
+
       <div className="space-y-3">
         {isLoading && orders.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
@@ -143,9 +157,10 @@ export function MyOrders({ userType }: MyOrdersProps) {
           </div>
         ) : (
           filtered.map((order) => {
-            const cfg = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending;
+            const cfg = statusConfig[order.status] || statusConfig.pending;
             const Icon = cfg.icon;
             const product = order.product;
+            const isUpdating = updatingId === order.id;
             return (
               <div
                 key={order.id}
@@ -190,33 +205,19 @@ export function MyOrders({ userType }: MyOrdersProps) {
                         {userType === 'seller' && order.status === 'pending' && (
                           <button
                             onClick={() => handleStatusChange(order, 'confirmed')}
-                            className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-xl hover:bg-blue-700"
+                            disabled={isUpdating}
+                            className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-xl hover:bg-blue-700 disabled:opacity-60"
                           >
-                            Confirm
+                            {isUpdating ? 'Updating…' : 'Confirm'}
                           </button>
                         )}
                         {userType === 'seller' && order.status === 'confirmed' && (
                           <button
                             onClick={() => handleStatusChange(order, 'completed')}
-                            className="px-3 py-1.5 bg-emerald-500 text-white text-xs rounded-xl hover:bg-emerald-600"
+                            disabled={isUpdating}
+                            className="px-3 py-1.5 bg-emerald-500 text-white text-xs rounded-xl hover:bg-emerald-600 disabled:opacity-60"
                           >
-                            Mark Completed
-                          </button>
-                        )}
-                        {userType === 'buyer' && order.status === 'pending' && (
-                          <button
-                            onClick={() => handleStatusChange(order, 'cancelled')}
-                            className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs rounded-xl hover:bg-slate-50"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        {userType === 'buyer' && order.status === 'confirmed' && (
-                          <button
-                            onClick={() => handleStatusChange(order, 'completed')}
-                            className="px-3 py-1.5 bg-emerald-500 text-white text-xs rounded-xl hover:bg-emerald-600 flex items-center gap-1"
-                          >
-                            <CheckCircle className="w-3 h-3" /> Mark Received
+                            {isUpdating ? 'Updating…' : 'Mark Completed'}
                           </button>
                         )}
                         <button className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs rounded-xl hover:bg-slate-50 flex items-center gap-1">

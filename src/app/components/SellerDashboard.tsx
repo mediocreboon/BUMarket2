@@ -14,7 +14,6 @@ import {
   listOrdersForSeller,
   listProductsBySeller,
   updateOrderStatus,
-  createNotification,
 } from '../../lib/db';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
@@ -29,7 +28,6 @@ const orderStatusColors: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
   confirmed: 'bg-blue-100 text-blue-700',
   completed: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-red-100 text-red-600',
 };
 
 export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
@@ -41,9 +39,15 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setOrders([]);
+      setProducts([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const [o, p] = await Promise.all([listOrdersForSeller(user.id), listProductsBySeller(user.id)]);
@@ -74,12 +78,14 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
   ];
 
   const handleConfirm = async (order: DbOrder) => {
-    const ok = await updateOrderStatus(order.id, 'confirmed');
-    if (!ok) return;
-    setOrders((prev) =>
-      prev.map((o) => (o.id === order.id ? { ...o, status: 'confirmed' } : o))
-    );
-    await createNotification(order.buyer_id, `Your order for "${order.product?.title}" was confirmed.`);
+    setUpdatingOrderId(order.id);
+    try {
+      const ok = await updateOrderStatus(order.id, 'confirmed');
+      if (!ok) return;
+      await refresh();
+    } finally {
+      setUpdatingOrderId(null);
+    }
   };
 
   return (
@@ -302,9 +308,10 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                         {order.status === 'pending' && (
                           <button
                             onClick={() => handleConfirm(order)}
-                            className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-xl hover:bg-blue-700"
+                            disabled={updatingOrderId === order.id}
+                            className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-xl hover:bg-blue-700 disabled:opacity-60"
                           >
-                            Confirm
+                            {updatingOrderId === order.id ? 'Updating…' : 'Confirm'}
                           </button>
                         )}
                       </div>
@@ -352,7 +359,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
           </div>
         )}
 
-        {activeView === 'orders' && <MyOrders userType="seller" />}
+        {activeView === 'orders' && <MyOrders userType="seller" onOrdersChanged={refresh} />}
         {activeView === 'inventory' && <SellerInventory />}
         {activeView === 'notifications' && <NotificationsPanel />}
 

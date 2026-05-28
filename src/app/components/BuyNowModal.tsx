@@ -3,7 +3,7 @@ import { CheckCircle2, MapPin, Wallet, Banknote, X, AlertTriangle } from 'lucide
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Product } from '../data/mockProducts';
 import { useAuth } from '../context/AuthContext';
-import { createOrder, createNotification, DbProduct } from '../../lib/db';
+import { createOrder, DbProduct, PaymentMethod } from '../../lib/db';
 import { dbProductToUiProduct } from '../data/productFeed';
 
 interface BuyNowModalProps {
@@ -11,8 +11,6 @@ interface BuyNowModalProps {
   onClose: () => void;
   onOrderPlaced?: () => Promise<void> | void;
 }
-
-type PaymentMethod = 'buy_now' | 'cash_on_pickup';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -60,17 +58,13 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
           );
           return;
         }
-        // Notify buyer + seller
-        await createNotification(user.id, `Order placed for "${product.title}". Waiting for seller confirmation.`);
-        await createNotification(
-          product.sellerId,
-          `New order received: "${product.title}" from ${user.fullName}.`
-        );
       } else {
         // Mock product — show success without persisting (demo only)
         await new Promise((r) => setTimeout(r, 400));
       }
-      await onOrderPlaced?.();
+      await Promise.resolve(onOrderPlaced?.()).catch((refreshError) => {
+        console.error('[BuyNowModal] post-order refresh failed:', refreshError);
+      });
       setSuccess(true);
     } catch (e: any) {
       setError(e?.message || 'Something went wrong.');
