@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Eye, EyeOff, ShieldCheck, LogIn } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -9,6 +9,7 @@ interface LoginPageProps {
 const DEMO_ACCOUNTS = [
   { label: 'Demo Buyer', email: 'buyer@bumarket.com' },
   { label: 'Demo Seller', email: 'seller@bumarket.com' },
+  { label: 'Demo Admin', email: 'admin@bumarket.com' },
 ];
 
 export function LoginPage({ onGoToSignUp }: LoginPageProps) {
@@ -18,7 +19,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -28,8 +29,12 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
     }
 
     setIsLoading(true);
+    let signedIn = false;
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
       if (authError) {
         const msg = authError.message.toLowerCase();
         if (msg.includes('invalid login credentials')) {
@@ -41,11 +46,12 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
         }
         return;
       }
+      signedIn = true;
       // AuthContext will pick up the session and route automatically.
     } catch (err: any) {
       setError(err?.message || 'Unexpected error. Please try again.');
     } finally {
-      setIsLoading(false);
+      if (!signedIn) setIsLoading(false);
     }
   };
 
@@ -116,7 +122,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
               className="w-full bg-blue-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-60"
             >
               {isLoading ? (
-                'Signing in…'
+                'Loading your dashboard…'
               ) : (
                 <>
                   <LogIn className="w-4 h-4" />
@@ -138,7 +144,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
               <ShieldCheck className="w-3.5 h-3.5" />
               Demo accounts (password: bumarket123)
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {DEMO_ACCOUNTS.map((d) => (
                 <button
                   key={d.email}

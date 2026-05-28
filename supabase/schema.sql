@@ -100,6 +100,23 @@ alter table public.products      enable row level security;
 alter table public.orders        enable row level security;
 alter table public.notifications enable row level security;
 
+-- Helper for profile self-updates. Users may edit profile details, but their
+-- persisted role must remain the role already stored in the profile row.
+create or replace function public.profile_role_is_unchanged(profile_id uuid, next_role text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.profiles p
+    where p.id = profile_id
+      and p.role = next_role
+  );
+$$;
+
 -- profiles: readable to everyone (so we can show seller names),
 --          writable only by the owner (or admins via service role).
 drop policy if exists profiles_select_all on public.profiles;
@@ -112,7 +129,11 @@ create policy profiles_insert_self on public.profiles
 
 drop policy if exists profiles_update_self on public.profiles;
 create policy profiles_update_self on public.profiles
-  for update using (auth.uid() = id) with check (auth.uid() = id);
+  for update using (auth.uid() = id)
+  with check (
+    auth.uid() = id
+    and public.profile_role_is_unchanged(id, role)
+  );
 
 -- products: readable by all, writable by the owning seller.
 drop policy if exists products_select_all on public.products;
@@ -181,7 +202,11 @@ declare
                             new.raw_user_meta_data->>'full_name',
                             split_part(new.email, '@', 1));
 begin
-  if new.email ilike 'admin@%' then new_role := 'admin'; end if;
+  if new.email ilike 'admin@%' then
+    new_role := 'admin';
+  elsif new_role not in ('buyer', 'seller') then
+    new_role := 'buyer';
+  end if;
 
   insert into public.profiles (id, email, full_name, role)
   values (new.id, new.email, new_name, new_role)

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ArrowLeft, ShoppingBag, Store, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { upsertProfile } from '../../lib/db';
@@ -8,6 +8,10 @@ interface SignUpPageProps {
 }
 
 type Role = 'buyer' | 'seller';
+type SignUpSuccess = {
+  email: string;
+  needsConfirmation: boolean;
+};
 
 const DEPARTMENTS = [
   'Computer Studies',
@@ -30,13 +34,13 @@ export function SignUpPage({ onBackToLogin }: SignUpPageProps) {
     phone: '',
   });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<SignUpSuccess | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const update = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -48,7 +52,7 @@ export function SignUpPage({ onBackToLogin }: SignUpPageProps) {
     setIsLoading(true);
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
         options: {
           data: {
@@ -74,26 +78,23 @@ export function SignUpPage({ onBackToLogin }: SignUpPageProps) {
         return;
       }
 
-      // Best-effort upsert in case the auth trigger isn't installed.
-      await upsertProfile({
-        id: data.user.id,
-        email: form.email,
-        full_name: form.fullName,
-        role,
-        verification_status: 'verified',
-        department: form.department,
-        phone: form.phone || null,
+      if (data.session) {
+        // Best-effort upsert in case the auth trigger isn't installed.
+        await upsertProfile({
+          id: data.user.id,
+          email: form.email.trim(),
+          full_name: form.fullName.trim(),
+          role,
+          verification_status: 'verified',
+          department: form.department,
+          phone: form.phone || null,
+        });
+      }
+
+      setSuccess({
+        email: form.email.trim(),
+        needsConfirmation: !data.session,
       });
-
-      setSuccess(true);
-
-      // Auto-login is automatic if email confirmation is disabled.
-      // Otherwise the user can return to the login page.
-      setTimeout(() => {
-        if (!data.session) {
-          onBackToLogin();
-        }
-      }, 1500);
     } catch (err: any) {
       setError(err?.message || 'Network error. Please try again.');
     } finally {
@@ -108,15 +109,19 @@ export function SignUpPage({ onBackToLogin }: SignUpPageProps) {
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-9 h-9 text-emerald-500" />
           </div>
-          <h2 className="text-slate-900 text-xl font-semibold mb-1">Account Created!</h2>
+          <h2 className="text-slate-900 text-xl font-semibold mb-1">
+            {success.needsConfirmation ? 'Check your email' : 'Account Created!'}
+          </h2>
           <p className="text-slate-500 text-sm mb-5">
-            Welcome to BUMarket. You can now sign in with your new account.
+            {success.needsConfirmation
+              ? `We sent a confirmation link to ${success.email}. Confirm your email, then sign in.`
+              : 'Welcome to BUMarket. Loading your dashboard now...'}
           </p>
           <button
             onClick={onBackToLogin}
             className="w-full py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
           >
-            Go to Sign In
+            {success.needsConfirmation ? 'Go to Sign In' : 'Back to Sign In'}
           </button>
         </div>
       </div>

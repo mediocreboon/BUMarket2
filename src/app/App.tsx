@@ -28,11 +28,53 @@ function LoadingScreen({ label = 'Loading your marketplace…' }: { label?: stri
   );
 }
 
+function AuthErrorScreen({
+  message,
+  onRetry,
+  onLogout,
+}: {
+  message: string;
+  onRetry: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+        <h1 className="mb-2">
+          <span className="font-bold text-slate-900 text-[32px] font-[Archivo_Black]">BU</span>
+          <span className="font-bold text-blue-600 text-[32px] font-[Archivo_Black]">M</span>
+          <span className="text-blue-600 text-[22px] font-[Archivo]">arket</span>
+        </h1>
+        <h2 className="text-slate-900 font-semibold mb-2">We could not finish signing you in</h2>
+        <p className="text-slate-500 text-sm mb-5">{message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onLogout}
+            className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm"
+          >
+            Sign out
+          </button>
+          <button
+            onClick={onRetry}
+            className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppRouter() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, profileError, logout, refresh } = useAuth();
   const [view, setView] = useState<'login' | 'signup'>('login');
 
   if (isLoading) return <LoadingScreen />;
+
+  if (profileError && !user) {
+    return <AuthErrorScreen message={profileError} onRetry={refresh} onLogout={logout} />;
+  }
 
   if (!user) {
     if (view === 'signup') {
