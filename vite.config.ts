@@ -22,7 +22,7 @@ function assertProductionSupabaseEnv() {
   const key = process.env.VITE_SUPABASE_ANON_KEY?.trim()
   if (!url || !key) {
     throw new Error(
-      'Production build requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Copy .env.example to .env and set your Supabase project credentials.'
+      'Production build requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Set them in Vercel project settings or copy .env.example to .env locally.'
     )
   }
 }
@@ -30,11 +30,16 @@ function assertProductionSupabaseEnv() {
 assertProductionSupabaseEnv()
 
 export default defineConfig({
+  base: '/',
   plugins: [
     figmaAssetResolver(),
     react(),
     tailwindcss(),
   ],
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

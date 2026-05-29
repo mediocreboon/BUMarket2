@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { LoginPage } from './components/LoginPage';
 import { SignUpPage } from './components/SignUpPage';
 import { BuyerLayout } from './components/BuyerLayout';
@@ -40,8 +41,7 @@ function ConfigErrorScreen({ message }: { message: string }) {
           <p>VITE_SUPABASE_ANON_KEY=your-anon-public-key</p>
         </div>
         <p className="text-slate-500 text-xs mt-4">
-          Copy <code className="text-slate-700">.env.example</code> to <code className="text-slate-700">.env</code>,
-          fill in your project credentials, then restart the dev server or rebuild.
+          Set these environment variables in your Vercel project settings, then redeploy.
         </p>
       </div>
     </div>
@@ -67,25 +67,21 @@ function AppRouter() {
 }
 
 export default function App() {
-  const [isAuthCallback, setIsAuthCallback] = useState(false);
-
-  useEffect(() => {
-    if (window.location.pathname.startsWith('/auth/callback')) {
-      setIsAuthCallback(true);
-    }
-  }, []);
-
   if (SUPABASE_CONFIG_ERROR) {
     return <ConfigErrorScreen message={SUPABASE_CONFIG_ERROR} />;
   }
 
-  if (isAuthCallback) {
-    return <AuthCallback />;
-  }
-
   return (
-    <AuthProvider>
-      <AppRouter />
-    </AuthProvider>
+    <Routes>
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route
+        path="*"
+        element={
+          <AuthProvider>
+            <AppRouter />
+          </AuthProvider>
+        }
+      />
+    </Routes>
   );
 }

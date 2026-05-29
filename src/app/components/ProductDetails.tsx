@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Star, ShieldCheck, MapPin, MessageCircle, Heart, Share2, Tag, Package, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Star, ShieldCheck, MapPin, MessageCircle, Share2, Tag, Package, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { Product, mockProducts, mockReviews } from '../data/mockProducts';
 import { ProductCard } from './ProductCard';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -21,9 +21,10 @@ export function ProductDetails({
   onInventoryChanged,
 }: ProductDetailsProps) {
   const [currentImg, setCurrentImg] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'reviews' | 'seller'>('details');
   const [showBuyModal, setShowBuyModal] = useState(false);
+
+  const isLiveListing = product.isLiveListing === true;
 
   const reviews = mockReviews.filter(r => r.productId === product.id);
   const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
@@ -64,10 +65,7 @@ export function ProductDetails({
         <div className="flex-1">
           <p className="text-slate-500 text-sm">Product Details</p>
         </div>
-        <button onClick={() => setIsFavorite(!isFavorite)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-500'}`} />
-        </button>
-        <button onClick={handleShare} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+<button onClick={handleShare} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
           <Share2 className="w-5 h-5 text-slate-500" />
         </button>
       </div>
@@ -125,7 +123,10 @@ export function ProductDetails({
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full">{product.category}</span>
-              {product.isPopular && (
+              {isLiveListing && (
+                <span className="text-xs bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full">New Listing</span>
+              )}
+              {!isLiveListing && product.isPopular && (
                 <span className="text-xs bg-orange-50 text-orange-600 px-3 py-1 rounded-full flex items-center gap-1">
                   <TrendingUp className="w-3 h-3" /> Popular
                 </span>
@@ -136,16 +137,22 @@ export function ProductDetails({
 
             {/* Rating */}
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex items-center gap-1">
-                {[1,2,3,4,5].map(s => (
-                  <Star key={s} className={`w-4 h-4 ${s <= Math.round(product.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
-                ))}
-                <span className="text-sm text-slate-600 ml-1">{product.rating}</span>
-              </div>
-              <span className="text-slate-300">|</span>
-              <span className="text-sm text-slate-500">{product.reviewCount} reviews</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-sm text-slate-500">{product.soldCount} sold</span>
+              {isLiveListing ? (
+                <span className="text-sm text-slate-500">No reviews yet</span>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className={`w-4 h-4 ${s <= Math.round(product.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+                    ))}
+                    <span className="text-sm text-slate-600 ml-1">{product.rating}</span>
+                  </div>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-sm text-slate-500">{product.reviewCount} reviews</span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-sm text-slate-500">{product.soldCount} sold</span>
+                </>
+              )}
             </div>
 
             {/* Price */}
@@ -213,12 +220,6 @@ export function ProductDetails({
               >
                 <MessageCircle className="w-5 h-5" />
               </button>
-              <button
-                onClick={() => setIsFavorite(!isFavorite)}
-                className={`px-4 py-3 border rounded-xl transition-colors ${isFavorite ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-              >
-                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500' : ''}`} />
-              </button>
             </div>
           </div>
         </div>
@@ -228,7 +229,7 @@ export function ProductDetails({
           <div className="flex border-b border-slate-100">
             {[
               { id: 'details', label: 'Description' },
-              { id: 'reviews', label: `Reviews (${product.reviewCount})` },
+              { id: 'reviews', label: isLiveListing ? 'Reviews' : `Reviews (${product.reviewCount})` },
               { id: 'seller', label: 'Seller Info' },
             ].map(tab => (
               <button
@@ -268,7 +269,7 @@ export function ProductDetails({
 
             {activeTab === 'reviews' && (
               <div className="space-y-4">
-                {reviews.length > 0 ? reviews.map(review => (
+                {!isLiveListing && reviews.length > 0 ? reviews.map(review => (
                   <div key={review.id} className="border-b border-slate-100 pb-4 last:border-0">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -289,7 +290,7 @@ export function ProductDetails({
                 )) : (
                   <div className="text-center py-6 text-slate-400">
                     <Star className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No reviews yet. Be the first to review!</p>
+                    <p className="text-sm">No reviews yet</p>
                   </div>
                 )}
               </div>
@@ -311,10 +312,12 @@ export function ProductDetails({
                       )}
                     </div>
                     <p className="text-slate-500 text-sm">{product.sellerDept} Department</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      <span className="text-xs text-slate-600">{product.rating} · {product.soldCount} items sold</span>
-                    </div>
+                    {!isLiveListing && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span className="text-xs text-slate-600">{product.rating} · {product.soldCount} items sold</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

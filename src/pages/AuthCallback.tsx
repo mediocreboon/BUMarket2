@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 export default function AuthCallback() {
   const [status, setStatus] = useState('Confirming your account…');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleAuth = async () => {
@@ -13,10 +15,7 @@ export default function AuthCallback() {
           return;
         }
         setStatus('Email confirmed! Redirecting…');
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 1500);
-      } catch (err) {
+        setTimeout(() => navigate('/', { replace: true }), 1500);      } catch (err) {
         console.error(err);
         setStatus('Something went wrong.');
       }

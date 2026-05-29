@@ -150,9 +150,6 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-slate-400 text-center mt-3">
-              Sign in with <code>admin@bumarket.com</code> for the admin dashboard.
-            </p>
           </div>
         </div>
       </div>

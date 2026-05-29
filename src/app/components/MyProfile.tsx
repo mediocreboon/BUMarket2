@@ -44,7 +44,9 @@ export function MyProfile({ userName, userType }: MyProfileProps) {
       ? `Verified ${userType === 'seller' ? 'Seller' : 'Buyer'}`
       : profile?.verification_status === 'pending'
         ? 'Verification pending'
-        : 'Verification rejected';
+        : profile?.verification_status === 'rejected'
+          ? 'Verification rejected'
+          : `Verified ${userType === 'seller' ? 'Seller' : 'Buyer'}`;
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50 p-6">
@@ -55,7 +57,7 @@ export function MyProfile({ userName, userType }: MyProfileProps) {
         </div>
 
         <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 text-sm text-blue-800">
-          Profile editing is coming soon. This view is read-only for capstone deployment.
+          Profile editing is coming in a future enhancement. This view is read-only for capstone deployment.
         </div>
 
         {isLoading ? (
