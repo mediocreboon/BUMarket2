@@ -3,11 +3,10 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
-
 function figmaAssetResolver() {
   return {
     name: 'figma-asset-resolver',
-    resolveId(id) {
+    resolveId(id: string) {
       if (id.startsWith('figma:asset/')) {
         const filename = id.replace('figma:asset/', '')
         return path.resolve(__dirname, 'src/assets', filename)
@@ -16,11 +15,23 @@ function figmaAssetResolver() {
   }
 }
 
+function assertProductionSupabaseEnv() {
+  if (process.env.NODE_ENV !== 'production') return
+
+  const url = process.env.VITE_SUPABASE_URL?.trim()
+  const key = process.env.VITE_SUPABASE_ANON_KEY?.trim()
+  if (!url || !key) {
+    throw new Error(
+      'Production build requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Copy .env.example to .env and set your Supabase project credentials.'
+    )
+  }
+}
+
+assertProductionSupabaseEnv()
+
 export default defineConfig({
   plugins: [
     figmaAssetResolver(),
-    // The React and Tailwind plugins are both required for Make, even if
-    // Tailwind is not being actively used – do not remove them
     react(),
     tailwindcss(),
   ],

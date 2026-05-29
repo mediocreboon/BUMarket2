@@ -5,14 +5,13 @@ import { Product } from '../data/mockProducts';
 import { useAuth } from '../context/AuthContext';
 import { createOrder, DbProduct, PaymentMethod } from '../../lib/db';
 import { dbProductToUiProduct } from '../data/productFeed';
+import { isPurchasableProduct } from '../../lib/productUtils';
 
 interface BuyNowModalProps {
   product: Product;
   onClose: () => void;
   onOrderPlaced?: () => Promise<void> | void;
 }
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProps) {
   const { user } = useAuth();
@@ -22,7 +21,7 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
   const [success, setSuccess] = useState(false);
   const mountedRef = useRef(true);
 
-  const isRealProduct = UUID_RE.test(product.id); // only DB products can be ordered for real
+  const canPurchase = isPurchasableProduct(product.id);
   const isOwnProduct = !!user && user.id === product.sellerId;
 
   useEffect(() => {
@@ -35,6 +34,10 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
   const handleConfirm = async () => {
     setError('');
 
+    if (!canPurchase) {
+      setError('This is a demo listing only. Orders can be placed on seller-uploaded marketplace products.');
+      return;
+    }
     if (!user) {
       setError('Please sign in to place an order.');
       return;
@@ -54,23 +57,18 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
 
     setIsPlacing(true);
     try {
-      if (isRealProduct) {
-        const order = await createOrder({
-          buyer_id: user.id,
-          product_id: product.id,
-          payment_method: method,
-        });
-        if (!order) {
-          if (mountedRef.current) {
-            setError(
-              "Couldn't place your order. The product may be out of stock, or the Supabase schema may need to be updated."
-            );
-          }
-          return;
+      const order = await createOrder({
+        buyer_id: user.id,
+        product_id: product.id,
+        payment_method: method,
+      });
+      if (!order) {
+        if (mountedRef.current) {
+          setError(
+            "Couldn't place your order. The product may be out of stock, or the Supabase schema may need to be updated."
+          );
         }
-      } else {
-        // Mock product — show success without persisting (demo only)
-        await new Promise((r) => setTimeout(r, 400));
+        return;
       }
       await Promise.resolve(onOrderPlaced?.()).catch((refreshError) => {
         console.error('[BuyNowModal] post-order refresh failed:', refreshError);
@@ -140,56 +138,60 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
           </div>
         </div>
 
-        <div className="space-y-2 mb-4">
-          <button
-            onClick={() => setMethod('cash_on_pickup')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-left ${
-              method === 'cash_on_pickup'
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <Banknote className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-slate-800 font-medium">Cash on Pickup</p>
-              <p className="text-xs text-slate-500">Pay in person at meet-up.</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setMethod('buy_now')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-left ${
-              method === 'buy_now' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <Wallet className="w-4 h-4 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-slate-800 font-medium">Buy Now</p>
-              <p className="text-xs text-slate-500">
-                Reserve instantly. <span className="text-slate-400">(Online payment coming soon.)</span>
-              </p>
-            </div>
-          </button>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 flex gap-2">
-          <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-700">
-            Meet-up at <strong>{product.location}</strong>. The seller will message you to confirm.
-          </p>
-        </div>
-
-        {!isRealProduct && (
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-3 flex gap-2">
+        {!canPurchase && (
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4 flex gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-700">
-              This is a demo product. The order won&apos;t be saved to the database.
+              This curated demo listing is browse-only. Only seller-uploaded products from Supabase can be ordered.
             </p>
           </div>
+        )}
+
+        {canPurchase && (
+          <>
+            <div className="space-y-2 mb-4">
+              <button
+                onClick={() => setMethod('cash_on_pickup')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-left ${
+                  method === 'cash_on_pickup'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <Banknote className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-800 font-medium">Cash on Pickup</p>
+                  <p className="text-xs text-slate-500">Pay in person at meet-up.</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setMethod('buy_now')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-left ${
+                  method === 'buy_now' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Wallet className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-slate-800 font-medium">Buy Now</p>
+                  <p className="text-xs text-slate-500">
+                    Reserve instantly. <span className="text-slate-400">(Online payment coming soon.)</span>
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 flex gap-2">
+              <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-700">
+                Meet-up at <strong>{product.location}</strong>. The seller will message you to confirm.
+              </p>
+            </div>
+          </>
         )}
 
         {error && (
@@ -204,22 +206,23 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
             disabled={isPlacing}
             className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm"
           >
-            Cancel
+            {canPurchase ? 'Cancel' : 'Close'}
           </button>
-          <button
-            onClick={handleConfirm}
-            disabled={isPlacing || product.stock <= 0}
-            className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-60"
-          >
-            {isPlacing ? 'Placing…' : product.stock <= 0 ? 'Out of Stock' : 'Place Order'}
-          </button>
+          {canPurchase && (
+            <button
+              onClick={handleConfirm}
+              disabled={isPlacing || product.stock <= 0}
+              className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-60"
+            >
+              {isPlacing ? 'Placing…' : product.stock <= 0 ? 'Out of Stock' : 'Place Order'}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// Adapter so DB products can be passed via the same modal directly when needed.
 export function dbProductForModal(p: DbProduct): Product {
   return dbProductToUiProduct(p);
 }

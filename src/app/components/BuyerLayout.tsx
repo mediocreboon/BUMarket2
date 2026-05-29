@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Store, Package, Heart, User, Wallet, LogOut, Bell, Menu, X, Home, ShieldCheck } from 'lucide-react';
+import { Store, Package, User, Wallet, LogOut, Bell, Menu, X, Home, ShieldCheck } from 'lucide-react';
 import { BuyerHome } from './BuyerHome';
 import { Marketplace } from './Marketplace';
 import { MyOrders } from './MyOrders';
-import { Favorites } from './Favorites';
 import { MyProfile } from './MyProfile';
 import { EWallet } from './EWallet';
 import { AIChatbot } from './AIChatbot';

@@ -114,13 +114,14 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (isSoldOut) return;
+                if (isSoldOut || !canPurchase) return;
                 setShowBuyModal(true);
               }}
-              disabled={isSoldOut}
+              disabled={isSoldOut || !canPurchase}
+              title={!canPurchase ? 'Demo listing — browse only' : undefined}
               className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSoldOut ? 'Sold Out' : 'Buy Now'}
+              {isSoldOut ? 'Sold Out' : canPurchase ? 'Buy Now' : 'Demo'}
             </button>
           </div>
         </div>

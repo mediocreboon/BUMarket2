@@ -69,10 +69,9 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
         <button
           onClick={onNavigateToNotifications}
           title="Notifications"
-          className="relative p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0"
+          className="p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0"
         >
           <Bell className="w-5 h-5 text-slate-600" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
         </button>
       </div>
 

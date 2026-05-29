@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { supabase } from '../../lib/supabase';
-import { fetchProfile, upsertProfile, Profile } from '../../lib/db';
+import { createProfileOnSignup, fetchProfile, Profile } from '../../lib/db';
 
 export interface AuthUser {
   id: string;
@@ -29,24 +29,23 @@ function profileToUser(p: Profile): AuthUser {
   };
 }
 
+function signupRoleFromMetadata(meta: Record<string, unknown>): 'buyer' | 'seller' {
+  return meta.role === 'seller' ? 'seller' : 'buyer';
+}
+
 async function loadUserForSession(sessionUser: { id: string; email?: string | null; user_metadata?: any }) {
   let profile = await fetchProfile(sessionUser.id);
 
-  // If there's no profile row yet (trigger failed or pre-existing user), create one.
   if (!profile) {
     const meta = sessionUser.user_metadata || {};
-    const role =
-      sessionUser.email && sessionUser.email.toLowerCase().startsWith('admin@')
-        ? 'admin'
-        : (meta.role as 'buyer' | 'seller' | undefined) || 'buyer';
+    const role = signupRoleFromMetadata(meta);
     const fullName = meta.fullName || meta.full_name || (sessionUser.email?.split('@')[0] ?? 'BUMarket User');
 
-    await upsertProfile({
+    await createProfileOnSignup({
       id: sessionUser.id,
       email: sessionUser.email || '',
       full_name: fullName,
       role,
-      verification_status: 'verified',
     });
     profile = await fetchProfile(sessionUser.id);
   }
