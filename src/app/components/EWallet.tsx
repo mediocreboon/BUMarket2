@@ -1,4 +1,4 @@
-import { Wallet, Sparkles } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 
 export function EWallet() {
   return (
@@ -13,10 +13,7 @@ export function EWallet() {
           <div className="w-16 h-16 bg-white/15 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Wallet className="w-8 h-8" />
           </div>
-          <h3 className="text-xl font-semibold mb-1 flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5 text-yellow-300" />
-            E-Wallet — Coming Soon
-          </h3>
+          <h3 className="text-xl font-semibold mb-1">E-Wallet</h3>
           <p className="text-blue-100 text-sm max-w-sm mx-auto">
             We&apos;re working on a built-in wallet for top-ups, transfers, and instant payments
             between buyers and sellers.
@@ -32,9 +29,6 @@ export function EWallet() {
             <div key={f.title} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
               <p className="text-sm font-medium text-slate-800">{f.title}</p>
               <p className="text-xs text-slate-500 mt-1">{f.desc}</p>
-              <span className="inline-block mt-3 text-[10px] uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                Future Enhancement
-              </span>
             </div>
           ))}
         </div>

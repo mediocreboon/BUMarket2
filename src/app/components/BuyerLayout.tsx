@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Store, Package, Heart, User, Wallet, LogOut, Bell, Menu, X, Home, ShieldCheck } from 'lucide-react';
 import { BuyerHome } from './BuyerHome';
 import { Marketplace } from './Marketplace';
@@ -31,7 +31,24 @@ const accountItems = [
 
 export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
   const [activeView, setActiveView] = useState<BuyerView>('home');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [marketplaceFilters, setMarketplaceFilters] = useState({ search: '', category: 'all' });
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === 'undefined' ? true : window.innerWidth >= 768
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setSidebarOpen(window.innerWidth >= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const navigate = (view: BuyerView) => {
+    setActiveView(view);
+    if (window.innerWidth < 768) setSidebarOpen(false);
+  };
 
   const Sidebar = (
     <div className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-white border-r border-slate-100 min-h-screen flex flex-col transition-all duration-200 flex-shrink-0`}>
@@ -47,6 +64,7 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
+          aria-label={sidebarOpen ? 'Collapse navigation' : 'Expand navigation'}
         >
           {sidebarOpen ? <X className="w-4 h-4 text-slate-500" /> : <Menu className="w-4 h-4 text-slate-500" />}
         </button>
@@ -71,7 +89,7 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-2 space-y-0.5">
+      <nav className="flex-1 py-4 px-2 space-y-0.5" aria-label="Main navigation">
         {sidebarOpen && (
           <p className="text-xs text-slate-400 uppercase tracking-wider px-2 mb-2">Main</p>
         )}
@@ -81,8 +99,9 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveView(item.id as BuyerView)}
+              onClick={() => navigate(item.id as BuyerView)}
               title={!sidebarOpen ? item.label : undefined}
+              aria-current={isActive ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                 isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
               }`}
@@ -104,8 +123,9 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveView(item.id as BuyerView)}
+              onClick={() => navigate(item.id as BuyerView)}
               title={!sidebarOpen ? item.label : undefined}
+              aria-current={isActive ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                 isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
               }`}
@@ -138,11 +158,24 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
         {activeView === 'home' && (
           <BuyerHome
             userName={userName}
-            onNavigateToMarketplace={() => setActiveView('marketplace')}
-            onNavigateToNotifications={() => setActiveView('notifications')}
+            onNavigateToMarketplace={(filters) => {
+              setMarketplaceFilters({
+                search: filters?.search ?? '',
+                category: filters?.category ?? 'all',
+              });
+              navigate('marketplace');
+            }}
+            onNavigateToNotifications={() => navigate('notifications')}
           />
         )}
-        {activeView === 'marketplace' && <Marketplace userName={userName} userType="buyer" />}
+        {activeView === 'marketplace' && (
+          <Marketplace
+            userName={userName}
+            userType="buyer"
+            initialSearch={marketplaceFilters.search}
+            initialCategory={marketplaceFilters.category}
+          />
+        )}
         {activeView === 'orders' && <MyOrders userType="buyer" />}
         {activeView === 'favorites' && <Favorites />}
         {activeView === 'notifications' && <NotificationsPanel />}

@@ -23,7 +23,7 @@ export function dbProductToUiProduct(p: DbProduct): Product {
     images: [image],
     verified: p.seller_verified ?? true,
     location: p.location || 'Campus',
-    rating: 5,
+    rating: 0,
     reviewCount: 0,
     soldCount: 0,
     stock: p.stock ?? 1,

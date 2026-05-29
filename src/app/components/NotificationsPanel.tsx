@@ -155,33 +155,37 @@ export function NotificationsPanel() {
           ) : (
             <ul className="divide-y divide-slate-100">
               {items.map((n) => (
-                <li
-                  key={n.id}
-                  onClick={() => handleMarkRead(n)}
-                  className={`p-4 flex items-start gap-3 transition-colors cursor-pointer ${
-                    n.is_read ? 'bg-white hover:bg-slate-50' : 'bg-blue-50/40 hover:bg-blue-50'
-                  }`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${
-                      n.is_read ? 'bg-slate-100 text-slate-400' : 'bg-blue-100 text-blue-600'
-                    }`}
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleMarkRead(n)}
+                    disabled={n.is_read || updatingId === n.id}
+                    className={`w-full text-left p-4 flex items-start gap-3 transition-colors ${
+                      n.is_read ? 'bg-white hover:bg-slate-50' : 'bg-blue-50/40 hover:bg-blue-50'
+                    } disabled:cursor-default`}
+                    aria-label={n.is_read ? `Read notification: ${n.message}` : `Mark notification as read: ${n.message}`}
                   >
-                    {n.is_read ? <Check className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`text-sm ${n.is_read ? 'text-slate-600' : 'text-slate-800 font-medium'}`}
+                    <div
+                      className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${
+                        n.is_read ? 'bg-slate-100 text-slate-400' : 'bg-blue-100 text-blue-600'
+                      }`}
                     >
-                      {n.message}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">{formatTime(n.created_at)}</p>
-                  </div>
-                  {updatingId === n.id ? (
-                    <RefreshCw className="w-3 h-3 text-blue-500 animate-spin mt-1.5 flex-shrink-0" />
-                  ) : !n.is_read && (
-                    <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-                  )}
+                      {n.is_read ? <Check className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={`text-sm break-words ${n.is_read ? 'text-slate-600' : 'text-slate-800 font-medium'}`}
+                      >
+                        {n.message}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">{formatTime(n.created_at)}</p>
+                    </div>
+                    {updatingId === n.id ? (
+                      <RefreshCw className="w-3 h-3 text-blue-500 animate-spin mt-1.5 flex-shrink-0" />
+                    ) : !n.is_read && (
+                      <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
+                    )}
+                  </button>
                 </li>
               ))}
             </ul>

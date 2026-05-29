@@ -1,23 +1,45 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductDetails } from './ProductDetails';
-import { mockProducts, Product } from '../data/mockProducts';
+import { Product } from '../data/mockProducts';
+import { useProducts } from '../data/useProducts';
+
+const FAVORITES_STORAGE_KEY = 'bumarket:favorites';
+
+function readFavoriteIds(): string[] {
+  try {
+    return JSON.parse(window.localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
 
 export function Favorites() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readFavoriteIds());
+  const { products, refresh } = useProducts();
 
-  // Default favorites from mockProducts
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(['1', '5', '9', '13']);
-  const favoriteProducts = mockProducts.filter(p => favoriteIds.includes(p.id));
+  useEffect(() => {
+    const syncFavorites = () => setFavoriteIds(readFavoriteIds());
+    window.addEventListener('storage', syncFavorites);
+    window.addEventListener('bumarket:favorites-updated', syncFavorites);
+    return () => {
+      window.removeEventListener('storage', syncFavorites);
+      window.removeEventListener('bumarket:favorites-updated', syncFavorites);
+    };
+  }, []);
+
+  const favoriteProducts = products.filter(p => favoriteIds.includes(p.id));
 
   if (selectedProduct) {
     return (
       <ProductDetails
         product={selectedProduct}
-        products={mockProducts}
+        products={products}
         onBack={() => setSelectedProduct(null)}
         onViewProduct={setSelectedProduct}
+        onInventoryChanged={refresh}
       />
     );
   }
@@ -35,7 +57,12 @@ export function Favorites() {
       {favoriteProducts.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {favoriteProducts.map(product => (
-            <ProductCard key={product.id} product={product} onViewDetails={setSelectedProduct} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              onViewDetails={setSelectedProduct}
+              onInventoryChanged={refresh}
+            />
           ))}
         </div>
       ) : (

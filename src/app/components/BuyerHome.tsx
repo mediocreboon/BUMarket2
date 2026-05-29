@@ -16,7 +16,7 @@ const ANNOUNCEMENTS = [
 
 interface BuyerHomeProps {
   userName: string;
-  onNavigateToMarketplace: () => void;
+  onNavigateToMarketplace: (filters?: { search?: string; category?: string }) => void;
   onNavigateToNotifications?: () => void;
 }
 
@@ -25,6 +25,12 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
   const [searchQuery, setSearchQuery] = useState('');
   const [announcementIdx, setAnnouncementIdx] = useState(0);
   const { products, refresh } = useProducts();
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   const featuredProducts = products.filter(p => p.isFeatured).slice(0, 4);
   const popularProducts = products.filter(p => p.isPopular).slice(0, 4);
@@ -32,7 +38,7 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) onNavigateToMarketplace();
+    if (searchQuery.trim()) onNavigateToMarketplace({ search: searchQuery.trim() });
   };
 
   const currentProduct = selectedProduct
@@ -55,7 +61,7 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
     <div className="flex-1 overflow-auto bg-slate-50">
       {/* Top Bar */}
       <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-2">
-        <p className="text-sm text-slate-500 hidden md:block">Monday, May 11, 2026</p>
+        <p className="text-sm text-slate-500 hidden md:block">{today}</p>
         <form onSubmit={handleSearch} className="flex-1 max-w-md md:mx-4 relative min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -70,9 +76,9 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
           onClick={onNavigateToNotifications}
           title="Notifications"
           className="relative p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0"
+          aria-label="Open notifications"
         >
           <Bell className="w-5 h-5 text-slate-600" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
         </button>
       </div>
 
@@ -82,11 +88,11 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
           <ImageWithFallback src={HERO_BG} alt="BUMarket" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-blue-800/60 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-12">
-            <p className="text-blue-200 text-sm mb-1">Welcome back, {userName}! 👋</p>
+            <p className="text-blue-200 text-sm mb-1 line-clamp-1">Welcome back, {userName}! 👋</p>
             <h2 className="text-white text-2xl md:text-3xl font-bold mb-2 max-w-sm leading-tight">Your Campus Marketplace is Open</h2>
             <p className="text-blue-100 text-sm mb-4 max-w-xs">Discover verified student sellers, quality products, and campus services.</p>
             <button
-              onClick={onNavigateToMarketplace}
+              onClick={() => onNavigateToMarketplace()}
               className="inline-flex items-center gap-2 bg-white text-blue-700 font-semibold px-5 py-2.5 rounded-full text-sm hover:bg-blue-50 transition-colors w-fit shadow-md"
             >
               Browse Marketplace <ArrowRight className="w-4 h-4" />
@@ -98,7 +104,7 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-slate-800">Browse Categories</h3>
-            <button onClick={onNavigateToMarketplace} className="text-blue-600 text-sm flex items-center gap-1 hover:underline">
+            <button onClick={() => onNavigateToMarketplace()} className="text-blue-600 text-sm flex items-center gap-1 hover:underline">
               See all <ArrowRight className="w-3 h-3" />
             </button>
           </div>
@@ -106,7 +112,7 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
             {categories.filter(c => c.id !== 'all').map((cat) => (
               <button
                 key={cat.id}
-                onClick={onNavigateToMarketplace}
+                onClick={() => onNavigateToMarketplace({ category: cat.id })}
                 className="bg-white rounded-2xl p-4 flex flex-col items-center gap-2 hover:bg-blue-50 hover:border-blue-200 transition-all border border-slate-100 shadow-sm group"
               >
                 <span className="text-2xl">{cat.icon}</span>
@@ -117,13 +123,13 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
         </div>
 
         {/* Announcement Banner */}
-        <div className={`bg-gradient-to-r ${announcement.color} rounded-2xl p-4 text-white flex items-center justify-between shadow-md`}>
+        <div className={`bg-gradient-to-r ${announcement.color} rounded-2xl p-4 text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-md`}>
           <div className="flex-1">
             <p className="font-semibold text-sm">{announcement.title}</p>
             <p className="text-white/80 text-xs mt-0.5">{announcement.desc}</p>
             <p className="text-white/60 text-xs mt-1">📅 {announcement.date}</p>
           </div>
-          <div className="flex items-center gap-2 ml-4">
+          <div className="flex items-center gap-2 sm:ml-4">
             <button
               onClick={() => setAnnouncementIdx(Math.max(0, announcementIdx - 1))}
               disabled={announcementIdx === 0}
@@ -149,19 +155,23 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
               <Zap className="w-5 h-5 text-amber-500" />
               <h3 className="text-slate-800">Featured Today</h3>
             </div>
-            <button onClick={onNavigateToMarketplace} className="text-blue-600 text-sm flex items-center gap-1 hover:underline">
+            <button onClick={() => onNavigateToMarketplace()} className="text-blue-600 text-sm flex items-center gap-1 hover:underline">
               View all <ArrowRight className="w-3 h-3" />
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {featuredProducts.map((product) => (
+            {featuredProducts.length > 0 ? featuredProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 onViewDetails={setSelectedProduct}
                 onInventoryChanged={refresh}
               />
-            ))}
+            )) : (
+              <div className="col-span-full bg-white rounded-2xl border border-slate-100 p-6 text-center text-slate-400 text-sm">
+                No featured products right now.
+              </div>
+            )}
           </div>
         </div>
 
@@ -172,19 +182,23 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
               <TrendingUp className="w-5 h-5 text-red-500" />
               <h3 className="text-slate-800">🔥 Trending Now</h3>
             </div>
-            <button onClick={onNavigateToMarketplace} className="text-blue-600 text-sm flex items-center gap-1 hover:underline">
+            <button onClick={() => onNavigateToMarketplace()} className="text-blue-600 text-sm flex items-center gap-1 hover:underline">
               View all <ArrowRight className="w-3 h-3" />
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {popularProducts.map((product) => (
+            {popularProducts.length > 0 ? popularProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 onViewDetails={setSelectedProduct}
                 onInventoryChanged={refresh}
               />
-            ))}
+            )) : (
+              <div className="col-span-full bg-white rounded-2xl border border-slate-100 p-6 text-center text-slate-400 text-sm">
+                No trending products right now.
+              </div>
+            )}
           </div>
         </div>
 

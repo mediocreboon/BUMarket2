@@ -8,6 +8,8 @@ import { useProducts } from '../data/useProducts';
 interface MarketplaceProps {
   userName: string;
   userType: 'buyer' | 'seller';
+  initialSearch?: string;
+  initialCategory?: string;
 }
 
 const PRICE_RANGES = [
@@ -20,11 +22,11 @@ const PRICE_RANGES = [
 
 const CONDITIONS = ['All', 'new', 'like-new', 'used', 'service'];
 
-export function Marketplace({ userName, userType }: MarketplaceProps) {
+export function Marketplace({ userName, userType, initialSearch = '', initialCategory = 'all' }: MarketplaceProps) {
   void userName;
   void userType;
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedPriceRange, setSelectedPriceRange] = useState(0);
   const [selectedCondition, setSelectedCondition] = useState('All');
   const [minRating, setMinRating] = useState<number | null>(null);
@@ -32,7 +34,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const { products, isLoading, refresh } = useProducts();
+  const { products, isLoading, error, refresh } = useProducts();
 
   const priceRange = PRICE_RANGES[selectedPriceRange];
 
@@ -100,6 +102,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
           <div className="flex-1 min-w-[220px] relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
+              aria-label="Search products"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -107,7 +110,11 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
               className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-slate-50 focus:bg-white transition-all"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                aria-label="Clear search"
+              >
                 <X className="w-4 h-4 text-slate-400" />
               </button>
             )}
@@ -116,6 +123,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
           {/* Sort */}
           <div className="relative flex-shrink-0">
             <select
+              aria-label="Sort products"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
               className="appearance-none pl-3 pr-8 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white cursor-pointer"
@@ -134,6 +142,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
             onClick={refresh}
             disabled={isLoading}
             title="Refresh"
+            aria-label="Refresh products"
             className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -142,6 +151,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm transition-colors ${showFilters || activeFilterCount > 0 ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
           >
             <SlidersHorizontal className="w-4 h-4" />
@@ -155,7 +165,7 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
         </div>
 
         {/* Category Tabs */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1" aria-label="Product categories">
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -276,6 +286,19 @@ export function Marketplace({ userName, userType }: MarketplaceProps) {
               {searchQuery && <span> for "<strong className="text-slate-700">{searchQuery}</strong>"</span>}
             </p>
           </div>
+
+          {(isLoading || error) && (
+            <div
+              className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+                error
+                  ? 'bg-red-50 border-red-200 text-red-700'
+                  : 'bg-blue-50 border-blue-100 text-blue-700'
+              }`}
+              role={error ? 'alert' : 'status'}
+            >
+              {error || 'Refreshing marketplace products…'}
+            </div>
+          )}
 
           {filtered.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

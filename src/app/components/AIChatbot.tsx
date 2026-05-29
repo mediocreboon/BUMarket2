@@ -8,6 +8,21 @@ interface Message {
   time: string;
 }
 
+interface AIChatbotProps {
+  context?: 'buyer' | 'seller' | 'admin';
+  page?: string;
+}
+
+const CONTEXT_HINTS: Record<string, string> = {
+  home: 'Tip: Browse featured products from Home, or open Marketplace to search everything.',
+  marketplace: 'Tip: Use filters to narrow products by category, price, condition, rating, or seller verification.',
+  orders: 'Tip: Orders move from Pending to Confirmed to Completed. Check notifications for updates.',
+  favorites: 'Tip: Favorites help you keep track of products you want to revisit.',
+  notifications: 'Tip: Notifications show order confirmations, completions, and seller updates.',
+  inventory: 'Tip: Sellers can add products, update stock, and keep listings current from Inventory.',
+  dashboard: 'Tip: The dashboard summarizes your current marketplace activity.',
+};
+
 const SUGGESTED_PROMPTS = [
   'How do I place an order?',
   'How do I become a seller?',
@@ -17,7 +32,7 @@ const SUGGESTED_PROMPTS = [
 ];
 
 const BOT_RESPONSES: Record<string, string> = {
-  'how do i place an order': '📦 To place an order:\n1. Browse the Marketplace\n2. Click on a product you like\n3. Tap **Reserve Now** on the product page\n4. Coordinate with the seller for meet-up or delivery\n5. Confirm payment at meet-up!\n\nEasy lang! 😊',
+  'how do i place an order': '📦 To place an order:\n1. Browse the Marketplace\n2. Click on a product you like\n3. Tap **Buy Now** on the product page\n4. Coordinate with the seller for meet-up or delivery\n5. Confirm payment at meet-up!\n\nEasy lang! 😊',
   'how do i become a seller': '🏪 To become a seller on BUMarket:\n1. Create a Seller Account from the login page\n2. Verify your student ID and department\n3. Set up your shop profile\n4. Start uploading your products!\n\nAll sellers must be verified BU students. 🎓',
   'how does meet-up work': '📍 Meet-up on BUMarket:\n- Buyers and sellers coordinate a meet-up spot on campus\n- Popular spots: Library, Cafeteria, Student Center\n- The seller confirms the time and location\n- Payment is done in person (cash or GCash)\n- Both parties confirm the transaction ✅',
   'what payment methods are accepted': '💳 Accepted Payment Methods:\n- **Cash on Meet-up (COD)** – Most common\n- **GCash** – Seller shares their number\n- **Maya** – Some sellers accept\n\nAlways confirm payment method with the seller when reserving! 👍',
@@ -57,7 +72,7 @@ function formatMessage(text: string) {
   });
 }
 
-export function AIChatbot() {
+export function AIChatbot({ context = 'buyer', page }: AIChatbotProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
@@ -119,7 +134,8 @@ export function AIChatbot() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform group"
+          className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform group"
+          aria-label="Chat with BUBot"
           title="Chat with BUBot"
         >
           <Bot className="w-7 h-7" />
@@ -132,7 +148,7 @@ export function AIChatbot() {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className={`fixed bottom-6 right-6 z-50 w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 ${isMinimized ? 'h-[60px]' : 'h-[500px]'}`}>
+        <div className={`fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 w-[calc(100vw-2rem)] max-w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 ${isMinimized ? 'h-[60px]' : 'h-[min(500px,calc(100vh-2rem))]'}`}>
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
@@ -148,10 +164,18 @@ export function AIChatbot() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsMinimized(!isMinimized)} className="text-white/80 hover:text-white transition-colors p-1 rounded">
+              <button
+                onClick={() => setIsMinimized(!isMinimized)}
+                className="text-white/80 hover:text-white transition-colors p-1 rounded"
+                aria-label={isMinimized ? 'Expand chat' : 'Minimize chat'}
+              >
                 <ChevronDown className={`w-4 h-4 transition-transform ${isMinimized ? 'rotate-180' : ''}`} />
               </button>
-              <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white transition-colors p-1 rounded">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-white/80 hover:text-white transition-colors p-1 rounded"
+                aria-label="Close chat"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -168,7 +192,7 @@ export function AIChatbot() {
                         <Bot className="w-4 h-4 text-indigo-600" />
                       </div>
                     )}
-                    <div className={`max-w-[80%] ${msg.role === 'user' ? '' : ''}`}>
+                    <div className="max-w-[80%]">
                       <div className={`rounded-2xl px-4 py-3 text-sm space-y-1 ${
                         msg.role === 'user'
                           ? 'bg-indigo-600 text-white rounded-tr-sm'
@@ -220,11 +244,13 @@ export function AIChatbot() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask BUBot anything..."
+                  aria-label="Ask BUBot a question"
                   className="flex-1 text-sm px-4 py-2.5 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-slate-50"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || isTyping}
+                  aria-label="Send message"
                   className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                 >
                   <Send className="w-4 h-4" />

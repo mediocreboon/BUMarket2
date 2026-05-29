@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Star, ShieldCheck, MapPin, MessageCircle, Heart, Share2, Tag, Package, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Star, ShieldCheck, MapPin, Heart, Share2, Tag, Package, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { Product, mockProducts, mockReviews } from '../data/mockProducts';
 import { ProductCard } from './ProductCard';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -58,16 +58,20 @@ export function ProductDetails({
     <div className="flex-1 overflow-auto bg-slate-50">
       {/* Header */}
       <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center gap-3 sticky top-0 z-20">
-        <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+        <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-colors" aria-label="Back to products">
           <ArrowLeft className="w-5 h-5 text-slate-700" />
         </button>
         <div className="flex-1">
           <p className="text-slate-500 text-sm">Product Details</p>
         </div>
-        <button onClick={() => setIsFavorite(!isFavorite)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+        <button
+          onClick={() => setIsFavorite(!isFavorite)}
+          className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+          aria-label={isFavorite ? `Remove ${product.title} from favorites` : `Save ${product.title} to favorites`}
+        >
           <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-500'}`} />
         </button>
-        <button onClick={handleShare} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+        <button onClick={handleShare} className="p-2 hover:bg-slate-100 rounded-xl transition-colors" aria-label="Share product">
           <Share2 className="w-5 h-5 text-slate-500" />
         </button>
       </div>
@@ -107,12 +111,14 @@ export function ProductDetails({
               )}
             </div>
             {images.length > 1 && (
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
                 {images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setCurrentImg(i)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${currentImg === i ? 'border-blue-500' : 'border-transparent'}`}
+                    aria-label={`View image ${i + 1} of ${images.length}`}
+                    aria-current={currentImg === i ? 'true' : undefined}
+                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${currentImg === i ? 'border-blue-500' : 'border-transparent'}`}
                   >
                     <ImageWithFallback src={img} alt="" className="w-full h-full object-cover" />
                   </button>
@@ -132,10 +138,10 @@ export function ProductDetails({
               )}
             </div>
 
-            <h2 className="text-slate-900 mb-3 leading-tight">{product.title}</h2>
+            <h2 className="text-slate-900 mb-3 leading-tight break-words">{product.title}</h2>
 
             {/* Rating */}
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 gap-y-2 mb-4 flex-wrap">
               <div className="flex items-center gap-1">
                 {[1,2,3,4,5].map(s => (
                   <Star key={s} className={`w-4 h-4 ${s <= Math.round(product.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
@@ -179,7 +185,7 @@ export function ProductDetails({
             {/* Location */}
             <div className="flex items-center gap-2 text-sm text-slate-500 mb-5">
               <MapPin className="w-4 h-4 text-blue-400" />
-              <span>Meet-up: <strong>{product.location}</strong></span>
+              <span className="break-words min-w-0">Meet-up: <strong>{product.location}</strong></span>
             </div>
 
             {/* Tags */}
@@ -192,20 +198,13 @@ export function ProductDetails({
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setShowBuyModal(true)}
                 disabled={product.stock <= 0}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                {product.stock <= 0 ? 'Out of Stock' : 'Reserve Now'}
-              </button>
-              <button
-                disabled
-                title="Messaging is coming soon"
-                className="px-4 py-3 border border-blue-200 text-blue-600 rounded-xl opacity-60 cursor-not-allowed"
-              >
-                <MessageCircle className="w-5 h-5" />
+                {product.stock <= 0 ? 'Out of Stock' : 'Buy Now'}
               </button>
               <button
                 onClick={() => setIsFavorite(!isFavorite)}
@@ -219,7 +218,7 @@ export function ProductDetails({
 
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
-          <div className="flex border-b border-slate-100">
+          <div className="flex border-b border-slate-100" role="tablist" aria-label="Product information">
             {[
               { id: 'details', label: 'Description' },
               { id: 'reviews', label: `Reviews (${product.reviewCount})` },
@@ -228,7 +227,11 @@ export function ProductDetails({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === tab.id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls={`product-tab-${tab.id}`}
+                id={`product-tab-button-${tab.id}`}
+                className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === tab.id ? 'text-blue-600 border-blue-600' : 'text-slate-500 hover:text-slate-700 border-transparent'}`}
               >
                 {tab.label}
               </button>
@@ -237,7 +240,7 @@ export function ProductDetails({
 
           <div className="p-6">
             {activeTab === 'details' && (
-              <div>
+              <div id="product-tab-details" role="tabpanel" aria-labelledby="product-tab-button-details">
                 <p className="text-slate-600 text-sm leading-relaxed mb-4">{product.description}</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="bg-slate-50 rounded-xl p-3">
@@ -261,7 +264,7 @@ export function ProductDetails({
             )}
 
             {activeTab === 'reviews' && (
-              <div className="space-y-4">
+              <div id="product-tab-reviews" role="tabpanel" aria-labelledby="product-tab-button-reviews" className="space-y-4">
                 {reviews.length > 0 ? reviews.map(review => (
                   <div key={review.id} className="border-b border-slate-100 pb-4 last:border-0">
                     <div className="flex items-center justify-between mb-2">
@@ -290,7 +293,7 @@ export function ProductDetails({
             )}
 
             {activeTab === 'seller' && (
-              <div>
+              <div id="product-tab-seller" role="tabpanel" aria-labelledby="product-tab-button-seller">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
                     <span className="text-xl text-blue-600 font-bold">{sellerInitial}</span>
@@ -316,23 +319,6 @@ export function ProductDetails({
                   <p className="text-sm text-slate-600">
                     <strong>Meet-up Location:</strong> {product.location}
                   </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    disabled
-                    title="Messaging is coming soon"
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl text-sm opacity-60 cursor-not-allowed"
-                  >
-                    <MessageCircle className="w-4 h-4" /> Message Seller
-                  </button>
-                  <button
-                    disabled
-                    title="Seller shop pages are coming soon"
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm opacity-60 cursor-not-allowed"
-                  >
-                    View Shop
-                  </button>
                 </div>
               </div>
             )}

@@ -347,18 +347,25 @@ export function SellerInventory() {
 
       {showFormModal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
           onClick={() => setShowFormModal(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-form-title"
             className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-slate-900 font-semibold">
+              <h3 id="product-form-title" className="text-slate-900 font-semibold">
                 {editingId ? 'Edit Product' : 'Add New Product'}
               </h3>
-              <button onClick={() => setShowFormModal(false)} className="p-2 hover:bg-slate-100 rounded-xl">
+              <button
+                onClick={() => setShowFormModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-xl"
+                aria-label="Close product form"
+              >
                 <X className="w-4 h-4 text-slate-500" />
               </button>
             </div>
@@ -423,7 +430,7 @@ export function SellerInventory() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm text-slate-700 mb-1.5">Price (₱) *</label>
                   <input
@@ -451,7 +458,7 @@ export function SellerInventory() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm text-slate-700 mb-1.5">Category</label>
                   <select

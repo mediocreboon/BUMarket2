@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Package, Clock, CheckCircle, MessageCircle, Search, RefreshCw } from 'lucide-react';
+import { Package, Clock, CheckCircle, Search, RefreshCw } from 'lucide-react';
 import {
   DbOrder,
   OrderStatus,
@@ -98,7 +98,7 @@ export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50 p-6">
-      <div className="mb-6 flex items-start justify-between gap-3">
+      <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-slate-800">{userType === 'buyer' ? 'My Orders' : 'Customer Orders'}</h2>
           <p className="text-slate-500 text-sm mt-1">
@@ -212,7 +212,7 @@ export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
                     <div className="flex items-center gap-4 mt-2 text-xs text-slate-400 flex-wrap">
                       <span>#{order.id.slice(0, 8).toUpperCase()}</span>
                       <span>{formatDate(order.created_at)}</span>
-                      {product?.location && <span>{product.location}</span>}
+                      {product?.location && <span className="max-w-[180px] truncate">{product.location}</span>}
                     </div>
                     <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
                       <p className="text-blue-600 font-semibold">
@@ -237,13 +237,6 @@ export function MyOrders({ userType, onOrdersChanged }: MyOrdersProps) {
                             {isUpdating ? 'Updating…' : 'Mark Completed'}
                           </button>
                         )}
-                        <button
-                          disabled
-                          title="Messaging is coming soon"
-                          className="px-3 py-1.5 border border-slate-200 text-slate-600 text-xs rounded-xl flex items-center gap-1 opacity-60 cursor-not-allowed"
-                        >
-                          <MessageCircle className="w-3 h-3" /> Message
-                        </button>
                       </div>
                     </div>
                   </div>

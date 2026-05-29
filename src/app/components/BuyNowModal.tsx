@@ -40,7 +40,7 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
       return;
     }
     if (user.role === 'admin') {
-      setError('Admins cannot place orders on the demo.');
+      setError('Admins cannot place orders.');
       return;
     }
     if (isOwnProduct) {
@@ -69,7 +69,7 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
           return;
         }
       } else {
-        // Mock product — show success without persisting (demo only)
+        // Static catalogue items are browse-only and are not persisted.
         await new Promise((r) => setTimeout(r, 400));
       }
       await Promise.resolve(onOrderPlaced?.()).catch((refreshError) => {
@@ -86,17 +86,20 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
   if (success) {
     return (
       <div
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
         onClick={onClose}
       >
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="order-success-title"
           className="bg-white rounded-2xl max-w-sm w-full p-7 text-center shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-8 h-8 text-emerald-500" />
           </div>
-          <h3 className="text-slate-900 font-semibold mb-1">Order placed!</h3>
+          <h3 id="order-success-title" className="text-slate-900 font-semibold mb-1">Order placed!</h3>
           <p className="text-slate-500 text-sm mb-5">
             The seller will confirm your order shortly. Track it under <strong>My Orders</strong>.
           </p>
@@ -112,14 +115,20 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-order-title"
+        className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-slate-900 font-semibold">Confirm Order</h3>
+            <h3 id="confirm-order-title" className="text-slate-900 font-semibold">Confirm Order</h3>
             <p className="text-slate-500 text-xs">Choose a simple payment method.</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100" aria-label="Close order dialog">
             <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>
@@ -170,7 +179,7 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
             <div className="flex-1">
               <p className="text-sm text-slate-800 font-medium">Buy Now</p>
               <p className="text-xs text-slate-500">
-                Reserve instantly. <span className="text-slate-400">(Online payment coming soon.)</span>
+                Reserve instantly and pay at the agreed meet-up.
               </p>
             </div>
           </button>
@@ -187,7 +196,7 @@ export function BuyNowModal({ product, onClose, onOrderPlaced }: BuyNowModalProp
           <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-3 flex gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-700">
-              This is a demo product. The order won&apos;t be saved to the database.
+              This catalogue item is available for browsing only and won&apos;t be saved as an order.
             </p>
           </div>
         )}

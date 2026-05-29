@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Users, Package, ShieldCheck, LogOut, Settings,
-  LayoutDashboard, ShoppingCart, Search, RefreshCw, Menu,
+  LayoutDashboard, ShoppingCart, Search, RefreshCw, Menu, X,
 } from 'lucide-react';
 import {
   listProfiles, listProducts, listAllOrders,
@@ -34,12 +34,15 @@ const formatDate = (iso: string) =>
 
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [activeView, setActiveView] = useState<AdminView>('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === 'undefined' ? true : window.innerWidth >= 768
+  );
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const mountedRef = useRef(true);
   const requestRef = useRef(0);
 
@@ -52,12 +55,15 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const isActive = () => mountedRef.current && requestId === requestRef.current;
     if (isActive()) setIsLoading(true);
     try {
+      if (isActive()) setError('');
       const [pf, pr, or] = await Promise.all([listProfiles(), listProducts(), listAllOrders()]);
       if (isActive()) {
         setProfiles(pf);
         setProducts(pr);
         setOrders(or);
       }
+    } catch {
+      if (isActive()) setError('Unable to refresh admin dashboard data.');
     } finally {
       if (isActive()) setIsLoading(false);
     }
@@ -70,6 +76,20 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       mountedRef.current = false;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setSidebarOpen(window.innerWidth >= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const navigate = (view: AdminView) => {
+    setActiveView(view);
+    if (window.innerWidth < 768) setSidebarOpen(false);
+  };
 
   const sellers = profiles.filter((p) => p.role === 'seller');
   const buyers = profiles.filter((p) => p.role === 'buyer');
@@ -108,20 +128,22 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors flex-shrink-0"
+            aria-label={sidebarOpen ? 'Collapse navigation' : 'Expand navigation'}
           >
-            <Menu className="w-4 h-4 text-slate-400" />
+            {sidebarOpen ? <X className="w-4 h-4 text-slate-400" /> : <Menu className="w-4 h-4 text-slate-400" />}
           </button>
         </div>
 
-        <nav className="flex-1 py-4 px-2 space-y-0.5">
+        <nav className="flex-1 py-4 px-2 space-y-0.5" aria-label="Admin navigation">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveView(item.id)}
+                onClick={() => navigate(item.id)}
                 title={!sidebarOpen ? item.label : undefined}
+                aria-current={isActive ? 'page' : undefined}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                   isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                 }`}
@@ -159,6 +181,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </button>
         </header>
 
+        {error && (
+          <div className="mx-6 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            {error}
+          </div>
+        )}
+
         {activeView === 'overview' && (
           <div className="flex-1 overflow-auto p-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -184,7 +212,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                 <h3 className="text-slate-800 font-semibold mb-4">Recent Users</h3>
-                {profiles.length === 0 ? (
+                {isLoading && profiles.length === 0 ? (
+                  <p className="text-sm text-slate-400">Loading users…</p>
+                ) : profiles.length === 0 ? (
                   <p className="text-sm text-slate-400">No users yet.</p>
                 ) : (
                   <ul className="space-y-3">
@@ -218,7 +248,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
               <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                 <h3 className="text-slate-800 font-semibold mb-4">Latest Orders</h3>
-                {orders.length === 0 ? (
+                {isLoading && orders.length === 0 ? (
+                  <p className="text-sm text-slate-400">Loading orders…</p>
+                ) : orders.length === 0 ? (
                   <p className="text-sm text-slate-400">No orders yet.</p>
                 ) : (
                   <ul className="space-y-3">
@@ -343,8 +375,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 </table>
               </div>
               <p className="text-xs text-slate-400 mt-3">
-                Showing {filteredUsers.length} / {profiles.length}. Verification status is
-                visual-only for the demo (no user access is blocked).
+                Showing {filteredUsers.length} / {profiles.length}.
               </p>
             </div>
           </div>
@@ -390,8 +421,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             <p className="text-sm text-slate-800 line-clamp-1 max-w-xs">{p.title}</p>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-sm text-slate-600">
-                          {p.seller_name || p.seller_id.slice(0, 8)}
+                        <td className="px-3 py-3 text-sm text-slate-600 max-w-[140px] truncate">
+                          {p.seller_name || `Seller ${p.seller_id.slice(0, 8)}`}
                         </td>
                         <td className="px-3 py-3">
                           <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full">
@@ -444,8 +475,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             ₱{Number(o.product?.price ?? 0).toLocaleString()}
                           </p>
                         </td>
-                        <td className="px-3 py-3 text-sm text-slate-600">
-                          {o.buyer?.full_name || o.buyer_id.slice(0, 8)}
+                        <td className="px-3 py-3 text-sm text-slate-600 max-w-[140px] truncate">
+                          {o.buyer?.full_name || `Buyer ${o.buyer_id.slice(0, 8)}`}
                         </td>
                         <td className="px-3 py-3 text-sm text-slate-600">
                           {o.payment_method === 'buy_now' ? 'Buy Now' : 'Cash on Pickup'}
@@ -481,7 +512,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               <div className="space-y-3 text-sm">
                 <div>
                   <p className="text-slate-400 text-xs">Platform</p>
-                  <p className="text-slate-800">BUMarket — Capstone Demo</p>
+                  <p className="text-slate-800">BUMarket</p>
                 </div>
                 <div>
                   <p className="text-slate-400 text-xs">Total accounts</p>
@@ -495,10 +526,6 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   <p className="text-slate-400 text-xs">Total orders</p>
                   <p className="text-slate-800">{orders.length}</p>
                 </div>
-              </div>
-              <div className="mt-5 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700">
-                Advanced platform analytics and moderation tools are tagged as{' '}
-                <strong>Future Enhancement</strong> for this demo.
               </div>
             </div>
           </div>

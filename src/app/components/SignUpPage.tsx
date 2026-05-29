@@ -145,10 +145,12 @@ export function SignUpPage({ onBackToLogin }: SignUpPageProps) {
           </div>
 
           {/* Role selector (no admin) */}
-          <div className="grid grid-cols-2 gap-2 mb-5">
+          <div className="grid grid-cols-2 gap-2 mb-5" role="radiogroup" aria-label="Choose account type">
             <button
               type="button"
               onClick={() => setRole('buyer')}
+              role="radio"
+              aria-checked={role === 'buyer'}
               className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
                 role === 'buyer'
                   ? 'border-blue-500 bg-blue-50 text-blue-700'
@@ -161,6 +163,8 @@ export function SignUpPage({ onBackToLogin }: SignUpPageProps) {
             <button
               type="button"
               onClick={() => setRole('seller')}
+              role="radio"
+              aria-checked={role === 'seller'}
               className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
                 role === 'seller'
                   ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
@@ -203,7 +207,7 @@ export function SignUpPage({ onBackToLogin }: SignUpPageProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-600 mb-1">Department</label>
                 <select
@@ -232,7 +236,7 @@ export function SignUpPage({ onBackToLogin }: SignUpPageProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-600 mb-1">Password</label>
                 <input

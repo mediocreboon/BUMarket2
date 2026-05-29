@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Heart, Star, MapPin, ShieldCheck } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Product } from '../data/mockProducts';
@@ -11,10 +11,38 @@ interface ProductCardProps {
   compact?: boolean;
 }
 
+const FAVORITES_STORAGE_KEY = 'bumarket:favorites';
+
+function readFavoriteIds(): string[] {
+  try {
+    return JSON.parse(window.localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function writeFavoriteIds(ids: string[]) {
+  window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(ids));
+  window.dispatchEvent(new CustomEvent('bumarket:favorites-updated'));
+}
+
 export function ProductCard({ product, onViewDetails, onInventoryChanged, compact = false }: ProductCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const isSoldOut = product.stock <= 0;
+  const canViewDetails = Boolean(onViewDetails);
+
+  useEffect(() => {
+    setIsFavorite(readFavoriteIds().includes(product.id));
+  }, [product.id]);
+
+  const handleCardKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!canViewDetails) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onViewDetails?.(product);
+    }
+  };
 
   const conditionColor = {
     new: 'bg-emerald-100 text-emerald-700',
@@ -33,7 +61,13 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
   return (
     <>
       <div
-        className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 border border-slate-100 group cursor-pointer"
+        role={canViewDetails ? 'button' : undefined}
+        tabIndex={canViewDetails ? 0 : undefined}
+        aria-label={canViewDetails ? `View details for ${product.title}` : undefined}
+        onKeyDown={handleCardKeyDown}
+        className={`bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 border border-slate-100 group ${
+          canViewDetails ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-300' : ''
+        }`}
         onClick={() => onViewDetails?.(product)}
       >
         <div className={`relative overflow-hidden bg-slate-100 ${compact ? 'h-36' : 'h-48'}`}>
@@ -55,8 +89,14 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setIsFavorite(!isFavorite);
+              const ids = readFavoriteIds();
+              const next = ids.includes(product.id)
+                ? ids.filter((id) => id !== product.id)
+                : [...ids, product.id];
+              writeFavoriteIds(next);
+              setIsFavorite(next.includes(product.id));
             }}
+            aria-label={isFavorite ? `Remove ${product.title} from favorites` : `Save ${product.title} to favorites`}
             className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-md hover:scale-110 transition-transform"
           >
             <Heart className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} />
@@ -73,8 +113,8 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
           )}
         </div>
 
-        <div className={`p-3 ${compact ? '' : 'p-4'}`}>
-          <div className="flex items-center gap-1.5 mb-2">
+        <div className={compact ? 'p-3' : 'p-4'}>
+          <div className="flex flex-wrap items-center gap-1.5 mb-2">
             <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{product.category}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${conditionColor}`}>{conditionLabel}</span>
           </div>
@@ -104,9 +144,9 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-600 font-semibold text-base">₱{product.price.toLocaleString()}</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-blue-600 font-semibold text-base truncate">₱{product.price.toLocaleString()}</p>
               {product.originalPrice && (
                 <p className="text-xs text-slate-400 line-through">₱{product.originalPrice.toLocaleString()}</p>
               )}
@@ -118,6 +158,7 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
                 setShowBuyModal(true);
               }}
               disabled={isSoldOut}
+              aria-label={isSoldOut ? `${product.title} is sold out` : `Buy ${product.title}`}
               className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSoldOut ? 'Sold Out' : 'Buy Now'}

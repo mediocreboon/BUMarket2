@@ -75,8 +75,9 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-600 mb-1.5">Email Address</label>
+              <label htmlFor="login-email" className="block text-sm text-slate-600 mb-1.5">Email Address</label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -88,9 +89,10 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
             </div>
 
             <div>
-              <label className="block text-sm text-slate-600 mb-1.5">Password</label>
+              <label htmlFor="login-password" className="block text-sm text-slate-600 mb-1.5">Password</label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -103,7 +105,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
-                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -136,7 +138,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
           <div className="mt-6 pt-5 border-t border-slate-100">
             <p className="text-xs text-slate-400 mb-3 text-center flex items-center justify-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Demo accounts (password: bumarket123)
+              Demo accounts
             </p>
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map((d) => (
@@ -150,9 +152,6 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-slate-400 text-center mt-3">
-              Sign in with <code>admin@bumarket.com</code> for the admin dashboard.
-            </p>
           </div>
         </div>
       </div>

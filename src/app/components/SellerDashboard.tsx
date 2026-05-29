@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  DollarSign, Star, Package, CheckCircle, AlertTriangle, LayoutDashboard, Box,
-  User, Settings, LogOut, ChevronDown, Save, ShieldCheck, Bell, Menu, ShoppingCart,
+  DollarSign, Package, CheckCircle, AlertTriangle, LayoutDashboard, Box,
+  User, Settings, LogOut, ChevronDown, ShieldCheck, Bell, Menu, ShoppingCart,
+  X,
 } from 'lucide-react';
 import { SellerInventory } from './SellerInventory';
 import { MyOrders } from './MyOrders';
@@ -34,11 +35,14 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
   const { user } = useAuth();
   const [activeView, setActiveView] = useState<SellerView>('dashboard');
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === 'undefined' ? true : window.innerWidth >= 768
+  );
 
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const requestRef = useRef(0);
@@ -56,11 +60,14 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
     }
     if (isActive()) setIsLoading(true);
     try {
+      if (isActive()) setError('');
       const [o, p] = await Promise.all([listOrdersForSeller(user.id), listProductsBySeller(user.id)]);
       if (isActive()) {
         setOrders(o);
         setProducts(p);
       }
+    } catch {
+      if (isActive()) setError('Unable to refresh seller dashboard data.');
     } finally {
       if (isActive()) setIsLoading(false);
     }
@@ -73,6 +80,21 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
       mountedRef.current = false;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setSidebarOpen(window.innerWidth >= 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const navigate = (view: SellerView) => {
+    setActiveView(view);
+    setShowUserMenu(false);
+    if (window.innerWidth < 768) setSidebarOpen(false);
+  };
 
   const pendingOrders = orders.filter((o) => o.status === 'pending');
   const completedOrders = orders.filter((o) => o.status === 'completed');
@@ -93,7 +115,10 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
     setUpdatingOrderId(order.id);
     try {
       const ok = await updateOrderStatus(order.id, 'confirmed');
-      if (!ok) return;
+      if (!ok) {
+        if (mountedRef.current) setError('Unable to confirm this order. Please try again.');
+        return;
+      }
       await refresh();
     } finally {
       if (mountedRef.current) setUpdatingOrderId(null);
@@ -119,8 +144,9 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
+            aria-label={sidebarOpen ? 'Collapse navigation' : 'Expand navigation'}
           >
-            <Menu className="w-4 h-4 text-slate-500" />
+            {sidebarOpen ? <X className="w-4 h-4 text-slate-500" /> : <Menu className="w-4 h-4 text-slate-500" />}
           </button>
         </div>
 
@@ -143,15 +169,16 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
           </div>
         )}
 
-        <nav className="flex-1 py-4 px-2 space-y-0.5">
+        <nav className="flex-1 py-4 px-2 space-y-0.5" aria-label="Seller navigation">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveView(item.id as SellerView)}
+                onClick={() => navigate(item.id as SellerView)}
                 title={!sidebarOpen ? item.label : undefined}
+                aria-current={isActive ? 'page' : undefined}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
                   isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                 }`}
@@ -190,8 +217,9 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
           </p>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveView('notifications')}
+              onClick={() => navigate('notifications')}
               className="relative p-2 hover:bg-slate-100 rounded-full transition-colors"
+              aria-label="View notifications"
             >
               <Bell className="w-5 h-5 text-slate-600" />
               {pendingOrders.length > 0 && (
@@ -211,10 +239,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-lg border border-slate-100 py-2 z-50">
                   <button
-                    onClick={() => {
-                      setActiveView('settings');
-                      setShowUserMenu(false);
-                    }}
+                    onClick={() => navigate('settings')}
                     className="w-full px-4 py-2.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 text-sm"
                   >
                     <User className="w-4 h-4" /> Profile Settings
@@ -230,6 +255,12 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
             </div>
           </div>
         </header>
+
+        {error && (
+          <div className="mx-6 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            {error}
+          </div>
+        )}
 
         {activeView === 'dashboard' && (
           <div className="flex-1 overflow-auto p-6">
@@ -282,7 +313,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
               <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-slate-800 font-semibold">Recent Orders</h3>
-                  <button onClick={() => setActiveView('orders')} className="text-xs text-indigo-600 hover:underline">
+                  <button onClick={() => navigate('orders')} className="text-xs text-indigo-600 hover:underline">
                     View all
                   </button>
                 </div>
@@ -296,7 +327,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                     {orders.slice(0, 5).map((order) => (
                       <div
                         key={order.id}
-                        className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-blue-100 transition-colors"
+                        className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-blue-100 transition-colors flex-wrap"
                       >
                         <ImageWithFallback
                           src={order.product?.image_url || ''}
@@ -313,7 +344,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                           </p>
                         </div>
                         <span
-                          className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${orderStatusColors[order.status]}`}
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize flex-shrink-0 ${orderStatusColors[order.status]}`}
                         >
                           {order.status}
                         </span>
@@ -336,36 +367,25 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                 <h3 className="text-slate-800 font-semibold mb-4">Quick Actions</h3>
                 <div className="space-y-2">
                   <button
-                    onClick={() => setActiveView('inventory')}
+                    onClick={() => navigate('inventory')}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-sm"
                   >
                     <Package className="w-4 h-4" /> Add / Edit Products
                   </button>
                   <button
-                    onClick={() => setActiveView('orders')}
+                    onClick={() => navigate('orders')}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-sm"
                   >
                     <ShoppingCart className="w-4 h-4" /> Manage Orders
                   </button>
                   <button
-                    onClick={() => setActiveView('notifications')}
+                    onClick={() => navigate('notifications')}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-sm"
                   >
                     <Bell className="w-4 h-4" /> View Notifications
                   </button>
                 </div>
 
-                <div className="mt-5 pt-5 border-t border-slate-100">
-                  <p className="text-xs text-slate-400 mb-2">Coming Soon</p>
-                  <div className="text-xs text-slate-500 space-y-1.5">
-                    <p className="flex items-center gap-1.5">
-                      <Star className="w-3 h-3 text-amber-400" /> Detailed analytics
-                    </p>
-                    <p className="flex items-center gap-1.5">
-                      <Star className="w-3 h-3 text-amber-400" /> Buyer chat & reviews
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -399,16 +419,8 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                   />
                 </div>
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
-                  Profile editing is a future enhancement. Demo accounts use the values seeded in
-                  Supabase.
+                  Account details are managed from your BUMarket profile.
                 </div>
-                <button
-                  type="button"
-                  disabled
-                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm flex items-center justify-center gap-2 opacity-60 cursor-not-allowed"
-                >
-                  <Save className="w-4 h-4" /> Save Changes
-                </button>
               </div>
             </div>
           </div>
