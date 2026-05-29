@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DollarSign, Star, Package, CheckCircle, AlertTriangle, LayoutDashboard, Box,
-  User, Settings, LogOut, ChevronDown, Save, ShieldCheck, Bell, Menu, ShoppingCart,
+  User, Settings, LogOut, ChevronDown, Save, ShieldCheck, Bell, Menu, ShoppingCart, X,
 } from 'lucide-react';
 import { SellerInventory } from './SellerInventory';
 import { MyOrders } from './MyOrders';
@@ -16,6 +16,7 @@ import {
   updateOrderStatus,
 } from '../../lib/db';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useResponsiveSidebar } from '../../hooks/useResponsiveSidebar';
 
 interface SellerDashboardProps {
   userName: string;
@@ -34,7 +35,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
   const { user } = useAuth();
   const [activeView, setActiveView] = useState<SellerView>('dashboard');
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { isMobile, sidebarOpen, toggleSidebar, closeSidebar } = useResponsiveSidebar(true);
 
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [products, setProducts] = useState<DbProduct[]>([]);
@@ -89,6 +90,16 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
     { id: 'settings', label: 'Settings', icon: Settings, badge: 0 },
   ];
 
+  const navigate = (view: SellerView) => {
+    setActiveView(view);
+    closeSidebar();
+  };
+
+  const sidebarWidthClass = isMobile ? 'w-64' : sidebarOpen ? 'w-64' : 'w-16';
+  const sidebarPositionClass = isMobile
+    ? `fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+    : 'relative flex-shrink-0';
+
   const handleConfirm = async (order: DbOrder) => {
     setUpdatingOrderId(order.id);
     try {
@@ -102,12 +113,16 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
-      <div
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-16'
-        } bg-white border-r border-slate-100 min-h-screen flex flex-col transition-all duration-200 flex-shrink-0`}
-      >
+      {isMobile && sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
+      <div className={`${sidebarPositionClass} ${sidebarWidthClass} bg-white border-r border-slate-100 min-h-screen flex flex-col`}>
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           {sidebarOpen && (
             <span>
@@ -117,10 +132,12 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
             </span>
           )}
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={sidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
             className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
           >
-            <Menu className="w-4 h-4 text-slate-500" />
+            {sidebarOpen ? <X className="w-4 h-4 text-slate-500" /> : <Menu className="w-4 h-4 text-slate-500" />}
           </button>
         </div>
 
@@ -150,7 +167,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveView(item.id as SellerView)}
+                onClick={() => navigate(item.id as SellerView)}
                 title={!sidebarOpen ? item.label : undefined}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
                   isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
@@ -183,14 +200,24 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-slate-100 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
-          <p className="text-slate-800 font-medium capitalize">
+      <div className="flex-1 flex flex-col min-w-0 w-full">
+        <header className="bg-white border-b border-slate-100 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-20 gap-3">
+          {isMobile && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Open navigation menu"
+              className="p-2 rounded-lg hover:bg-slate-100 md:hidden"
+            >
+              <Menu className="w-5 h-5 text-slate-600" />
+            </button>
+          )}
+          <p className="text-slate-800 font-medium capitalize flex-1">
             {sidebarItems.find((s) => s.id === activeView)?.label || 'Dashboard'}
           </p>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveView('notifications')}
+              onClick={() => navigate('notifications')}
               className="relative p-2 hover:bg-slate-100 rounded-full transition-colors"
             >
               <Bell className="w-5 h-5 text-slate-600" />
@@ -348,7 +375,7 @@ export function SellerDashboard({ userName, onLogout }: SellerDashboardProps) {
                     <ShoppingCart className="w-4 h-4" /> Manage Orders
                   </button>
                   <button
-                    onClick={() => setActiveView('notifications')}
+                    onClick={() => navigate('notifications')}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-sm"
                   >
                     <Bell className="w-4 h-4" /> View Notifications

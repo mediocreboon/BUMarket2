@@ -21,9 +21,9 @@ export function dbProductToUiProduct(p: DbProduct): Product {
     sellerDept: 'Campus',
     image,
     images: [image],
-    verified: p.seller_verified ?? true,
+    verified: p.seller_verified === true,
     location: p.location || 'Campus',
-    rating: 5,
+    rating: 0,
     reviewCount: 0,
     soldCount: 0,
     stock: p.stock ?? 1,
@@ -32,6 +32,7 @@ export function dbProductToUiProduct(p: DbProduct): Product {
     isPopular: false,
     isFeatured: false,
     createdAt: p.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+    isLiveListing: true,
   };
 }
 

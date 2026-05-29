@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Users, Package, ShieldCheck, LogOut, Settings,
-  LayoutDashboard, ShoppingCart, Search, RefreshCw, Menu,
+  LayoutDashboard, ShoppingCart, Search, RefreshCw, Menu, X, AlertCircle,
 } from 'lucide-react';
 import {
   listProfiles, listProducts, listAllOrders,
   Profile, DbProduct, DbOrder,
 } from '../../lib/db';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useResponsiveSidebar } from '../../hooks/useResponsiveSidebar';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -34,12 +35,13 @@ const formatDate = (iso: string) =>
 
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [activeView, setActiveView] = useState<AdminView>('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { isMobile, sidebarOpen, toggleSidebar, closeSidebar } = useResponsiveSidebar(true);
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const requestRef = useRef(0);
 
@@ -50,13 +52,21 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const refresh = useCallback(async () => {
     const requestId = ++requestRef.current;
     const isActive = () => mountedRef.current && requestId === requestRef.current;
-    if (isActive()) setIsLoading(true);
+    if (isActive()) {
+      setIsLoading(true);
+      setLoadError(null);
+    }
     try {
       const [pf, pr, or] = await Promise.all([listProfiles(), listProducts(), listAllOrders()]);
       if (isActive()) {
         setProfiles(pf);
         setProducts(pr);
         setOrders(or);
+        setLoadError(null);
+      }
+    } catch {
+      if (isActive()) {
+        setLoadError('Unable to load admin data. Check your connection and try again.');
       }
     } finally {
       if (isActive()) setIsLoading(false);
@@ -87,13 +97,28 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     (p) => !productSearch || p.title.toLowerCase().includes(productSearch.toLowerCase())
   );
 
+  const navigate = (view: AdminView) => {
+    setActiveView(view);
+    closeSidebar();
+  };
+
+  const sidebarWidthClass = isMobile ? 'w-64' : sidebarOpen ? 'w-64' : 'w-16';
+  const sidebarPositionClass = isMobile
+    ? `fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+    : 'relative flex-shrink-0';
+
   return (
     <div className="min-h-screen flex bg-slate-100">
-      <div
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-16'
-        } bg-slate-900 min-h-screen flex flex-col transition-all duration-200 flex-shrink-0`}
-      >
+      {isMobile && sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
+      <div className={`${sidebarPositionClass} ${sidebarWidthClass} bg-slate-900 min-h-screen flex flex-col`}>
         <div className="p-4 border-b border-slate-700 flex items-center justify-between">
           {sidebarOpen && (
             <div>
@@ -106,10 +131,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </div>
           )}
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={sidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
             className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors flex-shrink-0"
           >
-            <Menu className="w-4 h-4 text-slate-400" />
+            {sidebarOpen ? <X className="w-4 h-4 text-slate-400" /> : <Menu className="w-4 h-4 text-slate-400" />}
           </button>
         </div>
 
@@ -120,7 +147,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveView(item.id)}
+                onClick={() => navigate(item.id)}
                 title={!sidebarOpen ? item.label : undefined}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                   isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -144,9 +171,19 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
-          <h2 className="text-slate-800 font-semibold capitalize">
+      <div className="flex-1 flex flex-col min-w-0 w-full">
+        <header className="bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between gap-3">
+          {isMobile && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Open navigation menu"
+              className="p-2 rounded-lg hover:bg-slate-100 md:hidden"
+            >
+              <Menu className="w-5 h-5 text-slate-600" />
+            </button>
+          )}
+          <h2 className="text-slate-800 font-semibold capitalize flex-1">
             {navItems.find((n) => n.id === activeView)?.label || 'Admin'}
           </h2>
           <button
@@ -158,6 +195,18 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             Refresh
           </button>
         </header>
+
+        {loadError && (
+          <div className="mx-4 md:mx-6 mt-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p>{loadError}</p>
+              <button type="button" onClick={refresh} className="mt-1 text-red-700 underline hover:no-underline">
+                Try again
+              </button>
+            </div>
+          </div>
+        )}
 
         {activeView === 'overview' && (
           <div className="flex-1 overflow-auto p-6">

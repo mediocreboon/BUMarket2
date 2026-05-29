@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Star, MapPin, ShieldCheck } from 'lucide-react';
+import { Star, MapPin, ShieldCheck } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Product } from '../data/mockProducts';
 import { BuyNowModal } from './BuyNowModal';
@@ -12,9 +12,9 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onViewDetails, onInventoryChanged, compact = false }: ProductCardProps) {
-  const [isFavorite, setIsFavorite] = useState(false);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const isSoldOut = product.stock <= 0;
+  const isLiveListing = product.isLiveListing === true;
 
   const conditionColor = {
     new: 'bg-emerald-100 text-emerald-700',
@@ -42,25 +42,21 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
             alt={product.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          {product.discount && (
+          {isLiveListing && (
+            <div className="absolute top-2 left-2 bg-emerald-600 text-white text-xs font-bold px-2 py-1 rounded-lg">
+              New Listing
+            </div>
+          )}
+          {!isLiveListing && product.discount && (
             <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">
               -{product.discount}%
             </div>
           )}
-          {product.isPopular && !product.discount && (
+          {!isLiveListing && product.isPopular && !product.discount && (
             <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
               Hot
             </div>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsFavorite(!isFavorite);
-            }}
-            className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-md hover:scale-110 transition-transform"
-          >
-            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-400'}`} />
-          </button>
           {product.stock <= 3 && product.stock > 0 && (
             <div className="absolute bottom-2 left-2 bg-red-600/90 text-white text-xs px-2 py-0.5 rounded-full">
               Only {product.stock} left!
@@ -84,12 +80,18 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
           </h4>
 
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center gap-1">
-              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-              <span className="text-xs text-slate-600">{product.rating}</span>
-            </div>
-            <span className="text-slate-300 text-xs">|</span>
-            <span className="text-xs text-slate-500">{product.soldCount} sold</span>
+            {isLiveListing ? (
+              <span className="text-xs text-slate-500">No reviews yet</span>
+            ) : (
+              <>
+                <div className="flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                  <span className="text-xs text-slate-600">{product.rating}</span>
+                </div>
+                <span className="text-slate-300 text-xs">|</span>
+                <span className="text-xs text-slate-500">{product.soldCount} sold</span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-1 mb-3">
@@ -114,14 +116,13 @@ export function ProductCard({ product, onViewDetails, onInventoryChanged, compac
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (isSoldOut || !canPurchase) return;
+                if (isSoldOut) return;
                 setShowBuyModal(true);
               }}
-              disabled={isSoldOut || !canPurchase}
-              title={!canPurchase ? 'Demo listing — browse only' : undefined}
+              disabled={isSoldOut}
               className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSoldOut ? 'Sold Out' : canPurchase ? 'Buy Now' : 'Demo'}
+              {isSoldOut ? 'Sold Out' : 'Buy Now'}
             </button>
           </div>
         </div>

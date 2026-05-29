@@ -22,6 +22,8 @@ export interface Product {
   isFeatured?: boolean;
   discount?: number;
   createdAt: string;
+  /** True for seller-uploaded Supabase listings (honest trust indicators). */
+  isLiveListing?: boolean;
 }
 
 export const mockProducts: Product[] = [

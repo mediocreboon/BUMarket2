@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, ArrowRight, ShieldCheck, Zap, Star, TrendingUp, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { ProductDetails } from './ProductDetails';
 import { categories, mockSellers, Product } from '../data/mockProducts';
 import { useProducts } from '../data/useProducts';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useAuth } from '../context/AuthContext';
+import { listNotifications } from '../../lib/db';
 
 const HERO_BG = 'https://scontent.fmnl3-2.fna.fbcdn.net/v/t39.30808-6/506598061_1193219059517264_1907555190436737450_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=100&ccb=1-7&_nc_sid=7b2446&_nc_eui2=AeGfuZ8Vs6Jp2NtRJF-NeRAYPXJehY0gZuk9cl6FjSBm6SD_kvoNY3RIPcDgJs-jt-dOY_LlRb3QrYcmLqYRlGOX&_nc_ohc=vssUgdR6-zwQ7kNvwFbV0kV&_nc_oc=AdrHrawBcb9OfhGPdcTTmTxtP12nkCmjsFmff546e7O_KSa9Hmry-lkS5nJrX1dzMYU&_nc_zt=23&_nc_ht=scontent.fmnl3-2.fna&_nc_gid=XRvzr8K03dkWXoYz8PWbEA&_nc_ss=7b2a8&oh=00_Af5RdMgdECnPeFJ7rUvZLVd-F4Ak3HJGiMGappVF1KJ3mg&oe=6A089670';
 
@@ -16,15 +18,32 @@ const ANNOUNCEMENTS = [
 
 interface BuyerHomeProps {
   userName: string;
-  onNavigateToMarketplace: () => void;
+  onNavigateToMarketplace: (query?: string) => void;
   onNavigateToNotifications?: () => void;
 }
 
 export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotifications }: BuyerHomeProps) {
+  const { user } = useAuth();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [announcementIdx, setAnnouncementIdx] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { products, refresh } = useProducts();
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!user) {
+        if (active) setUnreadCount(0);
+        return;
+      }
+      const rows = await listNotifications(user.id);
+      if (active) setUnreadCount(rows.filter((n) => !n.is_read).length);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const featuredProducts = products.filter(p => p.isFeatured).slice(0, 4);
   const popularProducts = products.filter(p => p.isPopular).slice(0, 4);
@@ -32,7 +51,8 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) onNavigateToMarketplace();
+    const query = searchQuery.trim();
+    onNavigateToMarketplace(query || undefined);
   };
 
   const currentProduct = selectedProduct
@@ -69,9 +89,12 @@ export function BuyerHome({ userName, onNavigateToMarketplace, onNavigateToNotif
         <button
           onClick={onNavigateToNotifications}
           title="Notifications"
-          className="p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0"
+          className="relative p-2 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0"
         >
           <Bell className="w-5 h-5 text-slate-600" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" aria-hidden />
+          )}
         </button>
       </div>
 

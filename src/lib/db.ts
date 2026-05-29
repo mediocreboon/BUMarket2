@@ -142,7 +142,7 @@ export async function listProducts(): Promise<DbProduct[]> {
     .order('created_at', { ascending: false });
   if (error) {
     console.error('[db] listProducts error:', error.message);
-    return [];
+    throw new Error(error.message);
   }
   return (data || []).map((row: any) => ({
     ...row,
