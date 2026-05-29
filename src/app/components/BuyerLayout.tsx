@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Store, Package, User, Wallet, LogOut, Bell, Menu, X, Home, ShieldCheck } from 'lucide-react';
 import { BuyerHome } from './BuyerHome';
 import { Marketplace } from './Marketplace';
@@ -16,6 +17,26 @@ interface BuyerLayoutProps {
 
 type BuyerView = 'home' | 'marketplace' | 'orders' | 'notifications' | 'profile' | 'wallet';
 
+const PATH_TO_VIEW: Record<string, BuyerView> = {
+  '/': 'home',
+  '/home': 'home',
+  '/marketplace': 'marketplace',
+  '/orders': 'orders',
+  '/profile': 'profile',
+  '/notifications': 'notifications',
+  '/wallet': 'wallet',
+  '/chat': 'home',
+};
+
+const VIEW_TO_PATH: Record<BuyerView, string> = {
+  home: '/',
+  marketplace: '/marketplace',
+  orders: '/orders',
+  profile: '/profile',
+  notifications: '/notifications',
+  wallet: '/wallet',
+};
+
 const navItems = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'marketplace', label: 'Marketplace', icon: Store },
@@ -29,13 +50,26 @@ const accountItems = [
 ];
 
 export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
-  const [activeView, setActiveView] = useState<BuyerView>('home');
+  const routerNavigate = useNavigate();
+  const location = useLocation();
+  const [activeView, setActiveView] = useState<BuyerView>(
+    () => PATH_TO_VIEW[location.pathname] ?? 'home'
+  );
   const [marketplaceSearch, setMarketplaceSearch] = useState('');
   const { isMobile, sidebarOpen, toggleSidebar, closeSidebar } = useResponsiveSidebar(true);
 
-  const navigate = (view: BuyerView) => {
+  useEffect(() => {
+    const view = PATH_TO_VIEW[location.pathname];
+    if (view) setActiveView(view);
+  }, [location.pathname]);
+
+  const goToView = (view: BuyerView) => {
     setActiveView(view);
     closeSidebar();
+    const path = VIEW_TO_PATH[view];
+    if (location.pathname !== path) {
+      routerNavigate(path);
+    }
   };
 
   const sidebarWidthClass = isMobile
@@ -106,7 +140,7 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => navigate(item.id as BuyerView)}
+                onClick={() => goToView(item.id as BuyerView)}
                 title={!sidebarOpen ? item.label : undefined}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
@@ -131,7 +165,7 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => navigate(item.id as BuyerView)}
+                onClick={() => goToView(item.id as BuyerView)}
                 title={!sidebarOpen ? item.label : undefined}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
@@ -180,9 +214,9 @@ export function BuyerLayout({ userName, onLogout }: BuyerLayoutProps) {
             userName={userName}
             onNavigateToMarketplace={(query) => {
               if (query) setMarketplaceSearch(query);
-              setActiveView('marketplace');
+              goToView('marketplace');
             }}
-            onNavigateToNotifications={() => navigate('notifications')}
+            onNavigateToNotifications={() => goToView('notifications')}
           />
         )}
         {activeView === 'marketplace' && (
