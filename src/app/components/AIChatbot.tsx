@@ -8,6 +8,22 @@ interface Message {
   time: string;
 }
 
+type ChatContext = 'buyer' | 'seller' | 'admin';
+
+interface AIChatbotProps {
+  context?: ChatContext;
+  page?: string;
+}
+
+const CONTEXT_HINTS: Record<string, string> = {
+  home: 'Tip: Browse featured products or jump to the Marketplace from the hero banner.',
+  marketplace: 'Tip: Use search and category filters to find campus listings faster.',
+  orders: 'Tip: Order status moves from Pending → Confirmed → Completed.',
+  notifications: 'Tip: Click Refresh to load the latest order updates.',
+  inventory: 'Tip: Upload a clear photo and set accurate stock when adding products.',
+  dashboard: 'Tip: Confirm pending orders from the Overview or Orders tab.',
+};
+
 const SUGGESTED_PROMPTS = [
   'How do I place an order?',
   'How do I become a seller?',
@@ -28,6 +44,7 @@ const BOT_RESPONSES: Record<string, string> = {
 function getBotResponse(input: string): string {
   const lower = input.toLowerCase().trim();
   for (const key of Object.keys(BOT_RESPONSES)) {
+    if (key === 'default') continue;
     if (lower.includes(key) || key.includes(lower)) {
       return BOT_RESPONSES[key];
     }
@@ -50,17 +67,20 @@ function getBotResponse(input: string): string {
   return "Thanks for reaching out! 😊 I'm still learning, but I can help with orders, seller setup, payments, and meet-ups.\n\nTry asking something like:\n• \"How do I place an order?\"\n• \"How does meet-up work?\"\n• \"What payment methods are accepted?\"";
 }
 
-function formatMessage(text: string) {
+function formatBotMessage(text: string) {
   return text.split('\n').map((line, i) => {
     const bold = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    return <p key={i} className={`${line.startsWith('•') || line.match(/^\d\./) ? 'pl-2' : ''} leading-relaxed`} dangerouslySetInnerHTML={{ __html: bold }} />;
+    return (
+      <p
+        key={i}
+        className={`${line.startsWith('•') || line.match(/^\d\./) ? 'pl-2' : ''} leading-relaxed`}
+        dangerouslySetInnerHTML={{ __html: bold }}
+      />
+    );
   });
 }
 
-export function AIChatbot() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [input, setInput] = useState('');
+function buildGreeting(context: ChatContext, page?: string): string {
   const greeting =
     context === 'seller'
       ? "Hi! I'm **BUBot** 👋 — Need help managing products, orders, or notifications?"
@@ -69,12 +89,18 @@ export function AIChatbot() {
         : "Hi! I'm **BUBot** 👋 — your BUMarket assistant! I can help you with orders, seller info, payments, and more.";
 
   const pageHint = page && CONTEXT_HINTS[page] ? `\n\n${CONTEXT_HINTS[page]}` : '';
+  return greeting + pageHint;
+}
 
-  const [messages, setMessages] = useState<Message[]>([
+export function AIChatbot({ context = 'buyer', page }: AIChatbotProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<Message[]>(() => [
     {
       id: '0',
       role: 'bot',
-      text: greeting + pageHint,
+      text: buildGreeting(context, page),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -91,7 +117,7 @@ export function AIChatbot() {
     if (!text.trim()) return;
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg: Message = { id: Date.now().toString(), role: 'user', text, time };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
@@ -103,7 +129,7 @@ export function AIChatbot() {
         text: response,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages(prev => [...prev, botMsg]);
+      setMessages((prev) => [...prev, botMsg]);
       setIsTyping(false);
     }, 900 + Math.random() * 600);
   };
@@ -115,12 +141,12 @@ export function AIChatbot() {
 
   return (
     <>
-      {/* Floating Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform group"
           title="Chat with BUBot"
+          type="button"
         >
           <Bot className="w-7 h-7" />
           <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white" />
@@ -130,10 +156,10 @@ export function AIChatbot() {
         </button>
       )}
 
-      {/* Chat Window */}
       {isOpen && (
-        <div className={`fixed bottom-6 right-6 z-50 w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 ${isMinimized ? 'h-[60px]' : 'h-[500px]'}`}>
-          {/* Header */}
+        <div
+          className={`fixed bottom-6 right-6 z-50 w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 ${isMinimized ? 'h-[60px]' : 'h-[500px]'}`}
+        >
           <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
@@ -148,10 +174,18 @@ export function AIChatbot() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsMinimized(!isMinimized)} className="text-white/80 hover:text-white transition-colors p-1 rounded">
+              <button
+                type="button"
+                onClick={() => setIsMinimized(!isMinimized)}
+                className="text-white/80 hover:text-white transition-colors p-1 rounded"
+              >
                 <ChevronDown className={`w-4 h-4 transition-transform ${isMinimized ? 'rotate-180' : ''}`} />
               </button>
-              <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white transition-colors p-1 rounded">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="text-white/80 hover:text-white transition-colors p-1 rounded"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -159,7 +193,6 @@ export function AIChatbot() {
 
           {!isMinimized && (
             <>
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
                 {messages.map((msg) => (
                   <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -168,15 +201,19 @@ export function AIChatbot() {
                         <Bot className="w-4 h-4 text-indigo-600" />
                       </div>
                     )}
-                    <div className={`max-w-[80%] ${msg.role === 'user' ? '' : ''}`}>
-                      <div className={`rounded-2xl px-4 py-3 text-sm space-y-1 ${
-                        msg.role === 'user'
-                          ? 'bg-indigo-600 text-white rounded-tr-sm'
-                          : 'bg-white text-slate-700 border border-slate-200 rounded-tl-sm shadow-sm'
-                      }`}>
-                        {formatMessage(msg.text)}
+                    <div className="max-w-[80%]">
+                      <div
+                        className={`rounded-2xl px-4 py-3 text-sm space-y-1 ${
+                          msg.role === 'user'
+                            ? 'bg-indigo-600 text-white rounded-tr-sm whitespace-pre-wrap'
+                            : 'bg-white text-slate-700 border border-slate-200 rounded-tl-sm shadow-sm'
+                        }`}
+                      >
+                        {msg.role === 'user' ? msg.text : formatBotMessage(msg.text)}
                       </div>
-                      <p className={`text-xs text-slate-400 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>{msg.time}</p>
+                      <p className={`text-xs text-slate-400 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                        {msg.time}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -198,12 +235,12 @@ export function AIChatbot() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Suggested Prompts */}
               {messages.length <= 1 && (
                 <div className="px-3 py-2 bg-white border-t border-slate-100 flex gap-2 overflow-x-auto">
                   {SUGGESTED_PROMPTS.slice(0, 3).map((prompt) => (
                     <button
                       key={prompt}
+                      type="button"
                       onClick={() => sendMessage(prompt)}
                       className="flex-shrink-0 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-3 py-1.5 hover:bg-indigo-100 transition-colors whitespace-nowrap"
                     >
@@ -213,7 +250,6 @@ export function AIChatbot() {
                 </div>
               )}
 
-              {/* Input */}
               <form onSubmit={handleSubmit} className="p-3 bg-white border-t border-slate-200 flex gap-2">
                 <input
                   type="text"

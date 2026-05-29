@@ -192,13 +192,19 @@ export function ProductDetails({
             )}
 
             {/* Action Buttons */}
+            {!canPurchase && (
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4 text-xs text-amber-700">
+                Curated demo listing — browse only. Orders can be placed on seller-uploaded products in the marketplace.
+              </div>
+            )}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowBuyModal(true)}
-                disabled={product.stock <= 0}
+                onClick={() => canPurchase && setShowBuyModal(true)}
+                disabled={product.stock <= 0 || !canPurchase}
+                title={!canPurchase ? 'Demo listing — browse only' : undefined}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                {product.stock <= 0 ? 'Out of Stock' : 'Reserve Now'}
+                {product.stock <= 0 ? 'Out of Stock' : canPurchase ? 'Reserve Now' : 'Demo Listing'}
               </button>
               <button
                 disabled

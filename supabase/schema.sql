@@ -458,3 +458,29 @@ create policy "Owner can update product images" on storage.objects
 drop policy if exists "Owner can delete product images" on storage.objects;
 create policy "Owner can delete product images" on storage.objects
   for delete using (bucket_id = 'products' and auth.uid() = owner);
+
+-- ============================================================================
+-- SECURITY HARDENING (idempotent — safe to re-run on existing projects)
+-- Prevents self-service role / verification_status changes via profile updates.
+-- ============================================================================
+create or replace function public.protect_profile_privileged_columns()
+returns trigger
+language plpgsql
+as $$
+begin
+  if TG_OP = 'UPDATE' then
+    if new.role is distinct from old.role then
+      raise exception 'role_changes_not_allowed';
+    end if;
+    if new.verification_status is distinct from old.verification_status then
+      raise exception 'verification_status_changes_not_allowed';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_profile_privileged_columns on public.profiles;
+create trigger protect_profile_privileged_columns
+  before update on public.profiles
+  for each row execute function public.protect_profile_privileged_columns();

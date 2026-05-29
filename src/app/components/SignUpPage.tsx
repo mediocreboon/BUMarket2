@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, ShoppingBag, Store, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { upsertProfile } from '../../lib/db';
+import { createProfileOnSignup } from '../../lib/db';
 
 interface SignUpPageProps {
   onBackToLogin: () => void;

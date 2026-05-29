@@ -86,9 +86,51 @@ export async function listProfiles(): Promise<Profile[]> {
   return (data || []) as Profile[];
 }
 
-export async function upsertProfile(profile: Partial<Profile> & { id: string; email: string }) {
-  const { error } = await supabase.from('profiles').upsert(profile, { onConflict: 'id' });
-  if (error) console.error('[db] upsertProfile error:', error.message);
+type SignupRole = 'buyer' | 'seller';
+
+/** Initial profile row on signup — role limited to buyer or seller. */
+export async function createProfileOnSignup(profile: {
+  id: string;
+  email: string;
+  full_name: string;
+  role: SignupRole;
+  department?: string | null;
+  phone?: string | null;
+}) {
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      id: profile.id,
+      email: profile.email,
+      full_name: profile.full_name,
+      role: profile.role,
+      verification_status: 'verified',
+      department: profile.department ?? null,
+      phone: profile.phone ?? null,
+    },
+    { onConflict: 'id' }
+  );
+  if (error) console.error('[db] createProfileOnSignup error:', error.message);
+  return !error;
+}
+
+/** Self-service profile edits — role and verification_status cannot be changed here. */
+export async function updateProfileSelf(
+  userId: string,
+  patch: {
+    full_name?: string;
+    department?: string | null;
+    phone?: string | null;
+  }
+) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      full_name: patch.full_name,
+      department: patch.department,
+      phone: patch.phone,
+    })
+    .eq('id', userId);
+  if (error) console.error('[db] updateProfileSelf error:', error.message);
   return !error;
 }
 
