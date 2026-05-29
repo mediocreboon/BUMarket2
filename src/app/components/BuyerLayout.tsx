@@ -26,6 +26,7 @@ const PATH_TO_VIEW: Record<string, BuyerView> = {
   '/notifications': 'notifications',
   '/wallet': 'wallet',
   '/chat': 'home',
+  '/demos': 'home',
 };
 
 const VIEW_TO_PATH: Record<BuyerView, string> = {

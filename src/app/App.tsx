@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { LoginPage } from './components/LoginPage';
 import { SignUpPage } from './components/SignUpPage';
+import { DemosPage } from './components/DemosPage';
 import { BuyerLayout } from './components/BuyerLayout';
 import { SellerDashboard } from './components/SellerDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthCallback from '../pages/AuthCallback';
 import { SUPABASE_CONFIG_ERROR } from '../lib/supabase';
@@ -75,10 +77,20 @@ export default function App() {
     <Routes>
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route
+        path="/demos"
+        element={
+          <AuthProvider>
+            <DemosPage />
+          </AuthProvider>
+        }
+      />
+      <Route
         path="*"
         element={
           <AuthProvider>
-            <AppRouter />
+            <ErrorBoundary>
+              <AppRouter />
+            </ErrorBoundary>
           </AuthProvider>
         }
       />

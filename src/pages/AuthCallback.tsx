@@ -15,13 +15,14 @@ export default function AuthCallback() {
           return;
         }
         setStatus('Email confirmed! Redirecting…');
-        setTimeout(() => navigate('/', { replace: true }), 1500);      } catch (err) {
+        setTimeout(() => navigate('/', { replace: true }), 1500);
+      } catch (err) {
         console.error(err);
         setStatus('Something went wrong.');
       }
     };
     handleAuth();
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-700">

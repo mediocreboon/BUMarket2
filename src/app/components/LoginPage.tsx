@@ -1,15 +1,12 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Eye, EyeOff, ShieldCheck, LogIn } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { DEMO_ACCOUNTS, DEMO_PASSWORD, demoLoginErrorMessage } from '../../lib/demoAccounts';
 
 interface LoginPageProps {
   onGoToSignUp: () => void;
 }
-
-const DEMO_ACCOUNTS = [
-  { label: 'Demo Buyer', email: 'buyer@bumarket.com' },
-  { label: 'Demo Seller', email: 'seller@bumarket.com' },
-];
 
 export function LoginPage({ onGoToSignUp }: LoginPageProps) {
   const [email, setEmail] = useState('');
@@ -17,6 +14,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingDemoEmail, setLoadingDemoEmail] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,18 +39,32 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
         }
         return;
       }
-      // AuthContext will pick up the session and route automatically.
-    } catch (err: any) {
-      setError(err?.message || 'Unexpected error. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unexpected error. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fillDemo = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('bumarket123');
+  const handleDemoLogin = async (demoEmail: string) => {
+    setError('');
+    setLoadingDemoEmail(demoEmail);
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: DEMO_PASSWORD,
+      });
+      if (authError) {
+        setError(demoLoginErrorMessage(authError.message));
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unexpected error during demo login.');
+    } finally {
+      setLoadingDemoEmail(null);
+    }
   };
+
+  const busy = isLoading || Boolean(loadingDemoEmail);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 flex items-center justify-center p-4">
@@ -80,7 +92,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading}
+                disabled={busy}
                 autoComplete="email"
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm bg-slate-50"
                 placeholder="you@bumarket.com"
@@ -94,7 +106,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
+                  disabled={busy}
                   autoComplete="current-password"
                   className="w-full px-4 py-2.5 pr-11 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-sm bg-slate-50"
                   placeholder="••••••••"
@@ -112,7 +124,7 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={busy}
               className="w-full bg-blue-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-60"
             >
               {isLoading ? (
@@ -136,20 +148,26 @@ export function LoginPage({ onGoToSignUp }: LoginPageProps) {
           <div className="mt-6 pt-5 border-t border-slate-100">
             <p className="text-xs text-slate-400 mb-3 text-center flex items-center justify-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Demo accounts (password: bumarket123)
+              Quick demo login (password: {DEMO_PASSWORD})
             </p>
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map((d) => (
                 <button
                   key={d.email}
                   type="button"
-                  onClick={() => fillDemo(d.email)}
-                  className="text-xs py-2 px-2 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 transition-colors"
+                  disabled={busy}
+                  onClick={() => handleDemoLogin(d.email)}
+                  className="text-xs py-2 px-2 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 transition-colors disabled:opacity-60"
                 >
-                  {d.label}
+                  {loadingDemoEmail === d.email ? 'Signing in…' : d.label}
                 </button>
               ))}
             </div>
+            <p className="text-center mt-3">
+              <Link to="/demos" className="text-xs text-blue-600 hover:underline">
+                View all demo options
+              </Link>
+            </p>
           </div>
         </div>
       </div>
